@@ -443,20 +443,39 @@ async function checkout(method){
 
   }
 
-  const total =
-    cart.reduce(
-      (s,i)=>s+(i.price*i.qty),
-      0
-    );
+  const subtotal =
+
+  cart.reduce(
+    (s,i)=>s+(i.price*i.qty),
+    0
+  );
+
+const discount =
+
+  Number(
+    document.getElementById("discount")
+    .value
+  ) || 0;
+
+const total =
+
+  subtotal - discount;
 
   await addDoc(
     collection(db,"orders"),
     {
-      items:cart,
-      total,
-      payment:method,
-      time:new Date()
-    }
+  items:cart,
+
+  subtotal,
+
+  discount,
+
+  total,
+
+  payment:method,
+
+  time:new Date()
+}
   );
 
   alert("Order Done ✅");
@@ -607,12 +626,12 @@ const snapshot =
         </button>
 
         <button
-          onclick="editPayment(
+          onclick="editOrder(
             '${doc.id}',
             '${order.payment}'
           )"
         >
-          Edit Payment
+          Edit Order
         </button>
 
       </div>
@@ -712,22 +731,99 @@ window.deleteOrder = async function(id){
   loadDashboard();
 
 }
-window.editPayment =
-async function(id,current){
+window.editOrder =
+async function(id){
+
+  const orderRef =
+    doc(db,"orders",id);
+
+  const orderSnap =
+    await getDoc(orderRef);
+
+  const order =
+    orderSnap.data();
+
+  let text = "";
+
+  order.items.forEach(item=>{
+
+    text +=
+`${item.name},${item.qty},${item.price}\n`;
+
+  });
+
+  const result =
+    prompt(
+
+`Edit Items
+
+Format:
+name,qty,price
+
+Example:
+Shiro Matcha,2,9.9
+Basque,1,14.9
+`,
+
+      text
+
+    );
+
+  if(result === null) return;
+
+  const lines =
+    result
+    .split("\n")
+    .filter(line=>line.trim());
+
+  let items = [];
+
+  let total = 0;
+
+  lines.forEach(line=>{
+
+    const parts =
+      line.split(",");
+
+    const name =
+      parts[0];
+
+    const qty =
+      Number(parts[1]);
+
+    const price =
+      Number(parts[2]);
+
+    items.push({
+      name,
+      qty,
+      price
+    });
+
+    total += qty * price;
+
+  });
 
   const payment =
     prompt(
       "Payment Method",
-      current
+      order.payment
     );
 
-  if(!payment) return;
+  if(payment === null) return;
 
   await updateDoc(
-    doc(db,"orders",id),
+
+    orderRef,
+
     {
+
+      items,
+      total,
       payment
+
     }
+
   );
 
   loadDashboard();
