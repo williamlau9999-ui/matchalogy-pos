@@ -12,7 +12,9 @@
 
   <title>Matchalogy POS</title>
 
+<link rel="matchalogy-icon" sizes="512x512" href="public/logo.png">
 <link rel="manifest" href="manifest.json">
+
 
   <link
     rel="stylesheet"
@@ -149,6 +151,19 @@
 
   <hr>
 
+<div class="card-box">
+
+  <div>Total Discount</div>
+
+  <h2>
+    RM
+    <span id="todayDiscount">
+      0
+    </span>
+  </h2>
+
+</div>
+
   <h2>➕ Add / Edit Product</h2>
 
   <input
@@ -183,6 +198,129 @@
   type="module"
   src="app.js"
 ></script>
+<div
+  id="modifierModal"
+  class="modifier-modal"
+>
+
+  <div class="modifier-box">
+
+    <h2 id="modifierTitle">
+      Product
+    </h2>
+
+    <div class="modifier-group">
+
+      <label>Milk</label>
+
+      <select id="milkSelect">
+
+        <option>
+          Fresh Milk
+        </option>
+
+        <option>
+          Oat Milk
+        </option>
+
+        <option>
+          Coconut Milk
+        </option>
+
+      </select>
+
+    </div>
+
+    <div class="modifier-group">
+
+      <label>Ice</label>
+
+      <select id="iceSelect">
+
+        <option>
+          Normal Ice
+        </option>
+
+        <option>
+          Less Ice
+        </option>
+
+        <option>
+          No Ice
+        </option>
+
+      </select>
+
+    </div>
+
+<div class="modifier-group">
+
+  <label>Sweetness</label>
+
+  <select id="sweetSelect">
+
+    <option>100%</option>
+
+    <option>70%</option>
+
+    <option>50%</option>
+
+    <option>30%</option>
+
+    <option>0%</option>
+
+  </select>
+
+</div>
+
+<div class="modifier-group">
+
+  <label>Add-on</label>
+
+  <select id="addonSelect">
+
+    <option value="0">
+
+      None
+
+    </option>
+
+    <option value="2">
+
+      Extra Shot +RM2
+
+    </option>
+
+    <option value="3">
+
+      Matcha Foam +RM3
+
+    </option>
+
+  </select>
+
+</div>
+
+<div class="modifier-group">
+
+  <label>Customer Note</label>
+
+  <textarea
+    id="noteInput"
+    placeholder="Less bitter / birthday message..."
+  ></textarea>
+
+</div>
+
+    <button id="addModifierBtn">
+
+      Add To Cart
+
+    </button>
+
+  </div>
+
+</div>
 
 </body>
 </html>

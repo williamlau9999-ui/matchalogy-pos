@@ -38,6 +38,7 @@ let cart = [];
 let editingId = null;
 
 let currentCategory = "all";
+let selectedProduct = null;
 
 
 // LOAD PRODUCTS
@@ -160,24 +161,21 @@ async function loadProducts(){
             priceText.split("RM ")[1]
           );
 
-        const existing =
-          cart.find(i=>i.name===name);
+        selectedProduct = {
 
-        if(existing){
+  name,
 
-          existing.qty += 1;
+  price
 
-        }else{
+};
 
-          cart.push({
-            name,
-            price,
-            qty:1
-          });
+document.getElementById(
+  "modifierTitle"
+).innerText = name;
 
-        }
-
-        renderCart();
+document.getElementById(
+  "modifierModal"
+).style.display = "flex";
 
       });
 
@@ -250,9 +248,33 @@ function renderCart(){
 
       <li>
 
-        ${item.name}
-        x${item.qty}
+     ${item.name}
 
+<br>
+
+<small>
+
+${item.milk}
+
+·
+
+${item.ice}
+
+·
+
+${item.sweet}
+
+<br>
+
+${item.addon}
+
+<br>
+
+${item.note || ""}
+
+</small>
+
+x${item.qty}
         - RM${(item.price * item.qty).toFixed(2)}
 
         <button
@@ -505,6 +527,13 @@ document.getElementById("tngBtn")
 
 });
 
+document.getElementById("ShopeeBtn")
+.addEventListener("click",()=>{
+
+  checkout("Shopee");
+
+});
+
 
 // CATEGORY TAB
 document.querySelectorAll(".tab")
@@ -546,6 +575,8 @@ const snapshot =
 
   let count = 0;
 
+let discountTotal = 0;
+
   let ordersHTML = "";
 
   const today =
@@ -566,6 +597,9 @@ const snapshot =
     ){
 
       revenue += order.total;
+
+discountTotal +=
+  order.discount || 0;
 
       count += 1;
 
@@ -651,6 +685,11 @@ const snapshot =
 
   document.getElementById("todayOrders")
     .innerText = count;
+
+document.getElementById(
+  "todayDiscount"
+).innerText =
+  discountTotal.toFixed(2);
 
   document.getElementById("ordersList")
     .innerHTML = ordersHTML;
@@ -795,11 +834,17 @@ Basque,1,14.9
     const price =
       Number(parts[2]);
 
-    items.push({
-      name,
-      qty,
-      price
-    });
+   items.push({
+
+  name,
+
+  qty,
+
+  price,
+
+  milk:"Fresh Milk"
+
+});
 
     total += qty * price;
 
@@ -830,5 +875,108 @@ Basque,1,14.9
   loadDashboard();
 
 }
+
+document.getElementById(
+  "addModifierBtn"
+)
+.addEventListener("click",()=>{
+
+  const milk =
+    document.getElementById(
+      "milkSelect"
+    ).value;
+
+const sweet =
+
+  document.getElementById(
+    "sweetSelect"
+  ).value;
+
+const addonPrice =
+
+  Number(
+
+    document.getElementById(
+      "addonSelect"
+    ).value
+
+  );
+
+const addonName =
+
+  document.getElementById(
+    "addonSelect"
+  )
+
+  .selectedOptions[0]
+
+  .text;
+
+const note =
+
+  document.getElementById(
+    "noteInput"
+  ).value;
+
+  const ice =
+    document.getElementById(
+      "iceSelect"
+    ).value;
+
+  const existing =
+    cart.find(i=>
+
+      i.name === selectedProduct.name
+
+      &&
+
+      i.milk === milk
+
+      &&
+
+      i.ice === ice
+
+    );
+
+  if(existing){
+
+    existing.qty += 1;
+
+  }else{
+
+    cart.push({
+
+      name:selectedProduct.name,
+
+     price:
+
+  selectedProduct.price
+
+  +
+
+  addonPrice,
+
+      qty:1,
+
+      milk,
+
+ice,
+
+sweet,
+
+addon:addonName,
+
+note
+    });
+
+  }
+
+  renderCart();
+
+  document.getElementById(
+    "modifierModal"
+  ).style.display = "none";
+
+});
 
 },1000);
