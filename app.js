@@ -3,14 +3,15 @@ from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
 import {
   getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc,
-  updateDoc,
-  query,
-  orderBy
+collection,
+addDoc,
+getDocs,
+getDoc,
+deleteDoc,
+doc,
+updateDoc,
+query,
+orderBy
 }
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
