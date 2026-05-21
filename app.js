@@ -987,14 +987,10 @@ function showReceipt(order){
     <div class="receipt">
 
       <div class="receipt-logo">
-        <img src="public/logo.png">
+        <img src="./public/logo.png" alt="logo">
       </div>
 
       <h2>Matchalogy</h2>
-
-      <p class="receipt-sub">
-        Crafted Matcha & Dessert
-      </p>
 
       <p class="receipt-time">
         ${now.toLocaleString()}
@@ -1010,6 +1006,7 @@ function showReceipt(order){
 
         <div>
           <strong>${item.name}</strong>
+
           <small>
             ${item.milk || ""}
             ${item.ice ? " · " + item.ice : ""}
@@ -1037,16 +1034,10 @@ function showReceipt(order){
         <strong>RM ${order.total.toFixed(2)}</strong>
       </div>
 
-      <p class="receipt-payment">
-        Payment: ${order.payment}
-      </p>
+      <p>Payment: ${order.payment}</p>
 
       <p class="receipt-thanks">
         Thank you for visiting 💚
-      </p>
-
-      <p class="receipt-social">
-        @matchalogy
       </p>
 
     </div>
@@ -1054,23 +1045,16 @@ function showReceipt(order){
 
   document.getElementById("receiptContent").innerHTML = html;
   document.getElementById("receiptModal").style.display = "flex";
-
 }
 
-document.getElementById(
-  "closeReceiptBtn"
-)
+document.getElementById("closeReceiptBtn")
 .addEventListener("click",()=>{
 
-  document.getElementById(
-    "receiptModal"
-  ).style.display = "none";
+  document.getElementById("receiptModal").style.display = "none";
 
 });
 
-document.getElementById(
-  "printReceiptBtn"
-)
+document.getElementById("printReceiptBtn")
 .addEventListener("click",()=>{
 
   window.print();
