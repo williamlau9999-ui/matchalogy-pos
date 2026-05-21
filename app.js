@@ -700,8 +700,6 @@ loadProducts();
 
 loadDashboard();
 
-setTimeout(()=>{
-
   new Sortable(
 
   document.getElementById("products"),
@@ -1060,5 +1058,3 @@ document.getElementById("printReceiptBtn")
   window.print();
 
 });
-
-},1000);
