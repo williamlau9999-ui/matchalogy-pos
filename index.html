@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>Matchalogy POS</title>
+
+<link rel="manifest" href="manifest.json">
+
+  <link
+    rel="stylesheet"
+    href="style.css"
+  />
+
+</head>
+
+<body>
+
+<div class="left">
+
+  <h1>🍵 Matchalogy POS</h1>
+
+  <div class="tabs">
+
+    <button
+      class="tab active"
+      data-category="all"
+    >
+      All
+    </button>
+
+    <button
+      class="tab"
+      data-category="matcha"
+    >
+      Matcha
+    </button>
+
+    <button
+      class="tab"
+      data-category="espresso"
+    >
+      Espresso
+    </button>
+
+    <button
+      class="tab"
+      data-category="basque"
+    >
+      Basque
+    </button>
+
+    <button
+      class="tab"
+      data-category="mousse"
+    >
+      Mousse
+    </button>
+
+    <button
+      class="tab"
+      data-category="other"
+    >
+      Other
+    </button>
+
+  </div>
+
+  <div
+    class="products"
+    id="products"
+  ></div>
+
+</div>
+
+<div class="right">
+
+  <h2>🧾 Cart</h2>
+
+  <ul id="cart"></ul>
+
+  <div class="total">
+    RM <span id="total">0</span>
+  </div>
+
+  <button id="clearCartBtn">
+    Clear Cart
+  </button>
+
+  <button id="cashBtn">
+    Cash
+  </button>
+
+  <button id="tngBtn">
+    TNG
+  </button>
+
+  <hr>
+
+  <div class="dashboard">
+
+<div class="recent-orders">
+
+  <h2>Recent Orders</h2>
+
+  <div id="ordersList"></div>
+
+</div>
+
+    <h2>📊 Dashboard</h2>
+
+    <div class="dash-card">
+
+      <div>Today Revenue</div>
+
+      <strong>
+        RM <span id="todayRevenue">0</span>
+      </strong>
+
+    </div>
+
+    <div class="dash-card">
+
+      <div>Today Orders</div>
+
+      <strong id="todayOrders">
+        0
+      </strong>
+
+    </div>
+
+  </div>
+
+  <hr>
+
+  <h2>➕ Add / Edit Product</h2>
+
+  <input
+    id="name"
+    placeholder="Product Name"
+  />
+
+  <input
+    id="price"
+    placeholder="Price"
+  />
+
+  <input
+    id="category"
+    placeholder="Category"
+  />
+
+  <input
+    id="image"
+    placeholder="Image URL"
+  />
+
+  <button id="saveBtn">
+    Save Product
+  </button>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script
+  type="module"
+  src="app.js"
+></script>
+
+</body>
+</html>
