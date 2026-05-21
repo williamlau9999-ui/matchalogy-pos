@@ -985,7 +985,7 @@ function showReceipt(order){
     <div class="receipt">
 
       <div class="receipt-logo">
-        <img src="./public/logo.png" alt="logo">
+        <img src="./logo.png" alt="logo">
       </div>
 
       <h2>Matchalogy</h2>
