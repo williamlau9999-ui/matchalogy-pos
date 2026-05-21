@@ -1,1 +1,1 @@
-{   "name": "Matchalogy POS",   "short_name": "Matchalogy",   "start_url": ".",   "display": "standalone",   "background_color": "#ffffff",   "theme_color": "#000000",   "icons": [     {       "src": "public/logo.png",       "sizes": "512x512",       "type": "image/png"     }   ] }
+{   "name": "Matchalogy POS",   "short_name": "Matchalogy",   "start_url": ".",   "display": "standalone",   "background_color": "#ffffff",   "theme_color": "#000000",   "icons": [     {       <img src="./public/logo.png">       "sizes": "512x512",       "type": "image/png"     }   ] }

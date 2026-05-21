@@ -485,39 +485,28 @@ const total =
   subtotal - discount;
 
   await addDoc(
-    collection(db,"orders"),
-    {
-  items:cart,
-
-  subtotal,
-
-  discount,
-
-  total,
-
-  payment:method,
-
-  time:new Date()
-}
-  );
-
-  alert("Order Done ✅");
+  collection(db,"orders"),
+  {
+    items:cart,
+    subtotal,
+    discount,
+    total,
+    payment:method,
+    time:new Date()
+  }
+);
 
 showReceipt({
-
-  items:cart,
-
+  items: cart,
   total,
-
-  payment:method
-
+  payment: method
 });
 
-  cart = [];
+alert("Order Done ✅");
 
-  renderCart();
-
-  loadDashboard();
+cart = [];
+renderCart();
+loadDashboard();
 
 }
 
