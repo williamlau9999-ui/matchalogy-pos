@@ -946,28 +946,29 @@ const note =
 
     cart.push({
 
-      name:selectedProduct.name,
+  name:selectedProduct.name,
 
-     price:
+  price:
 
-  selectedProduct.price
+    selectedProduct.price
 
-  +
+    +
 
-  addonPrice,
+    addonPrice,
 
-      qty:1,
+  qty:1,
 
-      milk,
+  milk,
 
-ice,
+  ice,
 
-sweet,
+  sweet,
 
-addon:addonName,
+  addon:addonName,
 
-note
-    });
+  note
+
+});
 
   }
 
