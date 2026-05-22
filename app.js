@@ -1203,11 +1203,29 @@ async function loadClosingHistory(){
     await getDocs(collection(db,"closings"));
 
   let html = "";
+  let monthData = {};
 
   snapshot.forEach((docSnap)=>{
 
     const c =
       docSnap.data();
+
+const date =
+  new Date(c.time.seconds * 1000);
+
+const monthKey =
+  `${date.toLocaleString("default",{
+    month:"long"
+  })} ${date.getFullYear()}`;
+
+if(!monthData[monthKey]){
+
+  monthData[monthKey] = 0;
+
+}
+
+monthData[monthKey] +=
+  c.revenue || 0;
 
     html += `
 
@@ -1240,5 +1258,30 @@ async function loadClosingHistory(){
 
   document.getElementById("closingHistory")
     .innerHTML = html;
+
+let monthHTML = "";
+
+Object.entries(monthData)
+.reverse()
+.forEach(([month,total])=>{
+
+  monthHTML += `
+
+    <div class="closing-card">
+
+      <strong>${month}</strong>
+
+      Revenue:
+      RM ${total.toFixed(2)}
+
+    </div>
+
+  `;
+
+});
+
+document.getElementById(
+  "monthlyRevenue"
+).innerHTML = monthHTML;
 
 }
