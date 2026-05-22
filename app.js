@@ -716,11 +716,22 @@ order.items.forEach(item=>{
 
       order.items.forEach(item=>{
 
-        itemsHTML += `
-          <div>
-            ${item.name} x${item.qty}
-          </div>
-        `;
+       itemsHTML += `
+  <div>
+    ${item.name} x${item.qty}
+
+    ${item.milk || item.ice || item.sweet || item.addon || item.note ? `
+      <small>
+        <br>
+        ${item.milk ? item.milk + " · " : ""}
+        ${item.ice ? item.ice + " · " : ""}
+        ${item.sweet ? item.sweet : ""}
+        ${item.addon && item.addon !== "None" ? "<br>" + item.addon : ""}
+        ${item.note ? "<br>Note: " + item.note : ""}
+      </small>
+    ` : ""}
+  </div>
+`;
 
       });
 
@@ -734,9 +745,14 @@ order.items.forEach(item=>{
           >
 
             <div>
-              ${order.orderNo ? "#" + order.orderNo : ""}
-              ${orderDate.toLocaleTimeString()}
-            </div>
+  <span class="order-no">
+    ${order.orderNo ? "#" + order.orderNo : ""}
+  </span>
+
+  <span class="order-clock">
+    ${orderDate.toLocaleTimeString()}
+  </span>
+</div>
 
             <div>
               RM ${order.total.toFixed(2)}

@@ -308,3 +308,11 @@ button{
   display:block;
   margin-bottom:6px;
 }
+
+.order-no{
+  margin-right:16px;
+}
+
+.order-clock{
+  opacity:0.6;
+}
