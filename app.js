@@ -603,6 +603,7 @@ async function loadDashboard(){
 
   let topToday = {};
   let topMonth = {};
+  let topAllTime = {};
 
   let ordersHTML = "";
 
@@ -616,6 +617,13 @@ async function loadDashboard(){
 
     const order =
       docSnap.data();
+
+order.items.forEach(item=>{
+
+  topAllTime[item.name] =
+    (topAllTime[item.name] || 0) + item.qty;
+
+});
 
     const orderDate =
       new Date(
@@ -745,6 +753,8 @@ async function loadDashboard(){
   document.getElementById("topSellingMonth")
     .innerHTML = renderTopSelling(topMonth);
 
+  document.getElementById("topSellingAllTime")
+    .innerHTML = renderTopSelling(topAllTime);
 }
 
 loadProducts();
