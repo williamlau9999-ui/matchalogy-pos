@@ -544,8 +544,11 @@ const orderNo =
 showReceipt({
   orderNo,
   items: cart,
+  subtotal,
+  discount,
   total,
-  payment: method
+  payment: method,
+  note: orderNote
 });
 
 alert("Order Done ✅");
@@ -749,8 +752,16 @@ order.items.forEach(item=>{
             ${itemsHTML}
 
             <div class="order-payment">
-              ${order.payment}
-            </div>
+  ${order.payment}
+  ${order.discount > 0
+    ? `<br>Discount: RM ${order.discount.toFixed(2)}`
+    : ""
+  }
+  ${order.note
+    ? `<br>Note: ${order.note}`
+    : ""
+  }
+</div>
 
             <div class="order-actions">
 
@@ -1116,11 +1127,19 @@ function showReceipt(order){
           <strong>${item.name}</strong>
 
           <small>
-            ${item.milk || ""}
-            ${item.ice ? " · " + item.ice : ""}
-            ${item.sweet ? " · " + item.sweet : ""}
-            ${item.addon && item.addon !== "None" ? " · " + item.addon : ""}
-            ${item.note ? "<br>Note: " + item.note : ""}
+           ${item.milk ? item.milk + " · " : ""}
+           ${item.ice ? item.ice + " · " : ""}
+           ${item.sweet ? item.sweet : ""}
+
+           ${item.addon && item.addon !== "None"
+             ? "<br>" + item.addon
+             : ""
+}
+
+           ${item.note
+             ? "<br>Note: " + item.note
+             : ""
+}
           </small>
         </div>
 
@@ -1137,12 +1156,25 @@ function showReceipt(order){
   html += `
       <hr>
 
-      <div class="receipt-total">
-        <span>Total</span>
-        <strong>RM ${order.total.toFixed(2)}</strong>
-      </div>
+      ${order.discount > 0 ? `
+  <div class="receipt-total">
+    <span>Discount</span>
+    <strong>- RM ${order.discount.toFixed(2)}</strong>
+  </div>
+` : ""}
+
+<div class="receipt-total">
+  <span>Total</span>
+  <strong>RM ${order.total.toFixed(2)}</strong>
+</div>
 
       <p>Payment: ${order.payment}</p>
+
+${order.note ? `
+  <p>
+    Note: ${order.note}
+  </p>
+` : ""}
 
       <p class="receipt-thanks">
         Thank you for visiting 💚
