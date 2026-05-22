@@ -291,3 +291,20 @@ button{
   margin-top:20px;
   font-weight:600;
 }
+
+.daily-closing{
+  margin-top:20px;
+}
+
+.closing-card{
+  background:#f5f5f5;
+  padding:14px;
+  border-radius:14px;
+  margin-top:10px;
+  font-size:14px;
+}
+
+.closing-card strong{
+  display:block;
+  margin-bottom:6px;
+}

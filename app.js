@@ -484,9 +484,13 @@ const total =
 
   subtotal - discount;
 
+const orderNo =
+  Date.now().toString().slice(-6);
+
   await addDoc(
   collection(db,"orders"),
   {
+    orderNo,
     items:cart,
     subtotal,
     discount,
@@ -497,6 +501,7 @@ const total =
 );
 
 showReceipt({
+  orderNo,
   items: cart,
   total,
   payment: method
@@ -560,36 +565,80 @@ document.querySelectorAll(".tab")
 
 
 // DASHBOARD
+function renderTopSelling(data){
+
+  const sorted =
+    Object.entries(data)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,3);
+
+  if(sorted.length === 0){
+    return "-";
+  }
+
+  return sorted
+    .map((item,index)=>`
+      <div>
+        ${index + 1}. ${item[0]} x${item[1]}
+      </div>
+    `)
+    .join("");
+
+}
+
 async function loadDashboard(){
 
-  const q = query(
-  collection(db,"orders"),
-  orderBy("time","desc")
-);
 
-const snapshot =
-  await getDocs(q);
+  const q = query(
+    collection(db,"orders"),
+    orderBy("time","desc")
+  );
+
+  const snapshot =
+    await getDocs(q);
 
   let revenue = 0;
-
   let count = 0;
+  let discountTotal = 0;
 
-let discountTotal = 0;
+  let topToday = {};
+  let topMonth = {};
 
   let ordersHTML = "";
 
   const today =
     new Date().toDateString();
 
-  snapshot.forEach((doc)=>{
+  const now =
+    new Date();
 
-    const order = doc.data();
+  snapshot.forEach((docSnap)=>{
+
+    const order =
+      docSnap.data();
 
     const orderDate =
       new Date(
         order.time.seconds * 1000
       );
 
+    // ✅ This Month Top Selling
+    if(
+      orderDate.getMonth() === now.getMonth()
+      &&
+      orderDate.getFullYear() === now.getFullYear()
+    ){
+
+      order.items.forEach(item=>{
+
+        topMonth[item.name] =
+          (topMonth[item.name] || 0) + item.qty;
+
+      });
+
+    }
+
+    // ✅ Today Dashboard
     if(
       orderDate.toDateString()
       === today
@@ -597,10 +646,17 @@ let discountTotal = 0;
 
       revenue += order.total;
 
-discountTotal +=
-  order.discount || 0;
-
       count += 1;
+
+      discountTotal +=
+        order.discount || 0;
+
+      order.items.forEach(item=>{
+
+        topToday[item.name] =
+          (topToday[item.name] || 0) + item.qty;
+
+      });
 
       let itemsHTML = "";
 
@@ -608,73 +664,65 @@ discountTotal +=
 
         itemsHTML += `
           <div>
-            ${item.name}
-            x${item.qty}
+            ${item.name} x${item.qty}
           </div>
         `;
 
       });
 
-     ordersHTML += `
+      ordersHTML += `
 
-  <div class="order-card">
+        <div class="order-card">
 
-    <div
-      class="order-header"
-      onclick="toggleOrder('${doc.id}')"
-    >
+          <div
+            class="order-header"
+            onclick="toggleOrder('${docSnap.id}')"
+          >
 
-      <div>
+            <div>
+              ${order.orderNo ? "#" + order.orderNo : ""}
+              ${orderDate.toLocaleTimeString()}
+            </div>
 
-        ${orderDate.toLocaleTimeString()}
+            <div>
+              RM ${order.total.toFixed(2)}
+            </div>
 
-      </div>
+          </div>
 
-      <div>
+          <div
+            class="order-details"
+            id="order-${docSnap.id}"
+          >
 
-        RM ${order.total.toFixed(2)}
+            ${itemsHTML}
 
-      </div>
+            <div class="order-payment">
+              ${order.payment}
+            </div>
 
-    </div>
+            <div class="order-actions">
 
-    <div
-      class="order-details"
-      id="order-${doc.id}"
-    >
+              <button
+                onclick="deleteOrder('${docSnap.id}')"
+              >
+                Delete
+              </button>
 
-      ${itemsHTML}
+              <button
+                onclick="editOrder('${docSnap.id}')"
+              >
+                Edit Order
+              </button>
 
-      <div class="order-payment">
+            </div>
 
-        ${order.payment}
+          </div>
 
-      </div>
+        </div>
 
-      <div class="order-actions">
+      `;
 
-        <button
-          onclick="deleteOrder('${doc.id}')"
-        >
-          Delete
-        </button>
-
-        <button
-          onclick="editOrder(
-            '${doc.id}',
-            '${order.payment}'
-          )"
-        >
-          Edit Order
-        </button>
-
-      </div>
-
-    </div>
-
-  </div>
-
-`;
     }
 
   });
@@ -685,20 +733,25 @@ discountTotal +=
   document.getElementById("todayOrders")
     .innerText = count;
 
-document.getElementById(
-  "todayDiscount"
-).innerText =
-  discountTotal.toFixed(2);
+  document.getElementById("todayDiscount")
+    .innerText = discountTotal.toFixed(2);
 
   document.getElementById("ordersList")
     .innerHTML = ordersHTML;
 
-}
+  document.getElementById("topSellingToday")
+    .innerHTML = renderTopSelling(topToday);
 
+  document.getElementById("topSellingMonth")
+    .innerHTML = renderTopSelling(topMonth);
+
+}
 
 loadProducts();
 
 loadDashboard();
+
+loadClosingHistory();
 
   new Sortable(
 
@@ -990,6 +1043,10 @@ function showReceipt(order){
 
       <h2>Matchalogy</h2>
 
+<p class="receipt-sub">
+  Order #${order.orderNo}
+</p>
+
       <p class="receipt-time">
         ${now.toLocaleString()}
       </p>
@@ -1058,3 +1115,120 @@ document.getElementById("printReceiptBtn")
   window.print();
 
 });
+
+document.getElementById("closeDayBtn")
+.addEventListener("click",async()=>{
+
+  const today =
+    new Date().toDateString();
+
+  const snapshot =
+    await getDocs(collection(db,"orders"));
+
+  let revenue = 0;
+  let discount = 0;
+  let orders = 0;
+
+  let cash = 0;
+  let tng = 0;
+  let shopee = 0;
+
+  snapshot.forEach((docSnap)=>{
+
+    const order =
+      docSnap.data();
+
+    const orderDate =
+      new Date(
+        order.time.seconds * 1000
+      ).toDateString();
+
+    if(orderDate === today){
+
+      revenue += order.total || 0;
+
+      discount += order.discount || 0;
+
+      orders += 1;
+
+      if(order.payment === "Cash"){
+        cash += order.total || 0;
+      }
+
+      if(order.payment === "TNG"){
+        tng += order.total || 0;
+      }
+
+      if(order.payment === "Shopee"){
+        shopee += order.total || 0;
+      }
+
+    }
+
+  });
+
+  await addDoc(
+    collection(db,"closings"),
+    {
+      date: today,
+      revenue,
+      discount,
+      orders,
+      cash,
+      tng,
+      shopee,
+      time:new Date()
+    }
+  );
+
+  alert("Day Closed ✅");
+
+  loadClosingHistory();
+
+});
+
+async function loadClosingHistory(){
+
+  const snapshot =
+    await getDocs(collection(db,"closings"));
+
+  let html = "";
+
+  snapshot.forEach((docSnap)=>{
+
+    const c =
+      docSnap.data();
+
+    html += `
+
+      <div class="closing-card">
+
+        <strong>${c.date}</strong>
+
+        Revenue: RM ${c.revenue.toFixed(2)}
+        <br>
+
+        Discount: RM ${c.discount.toFixed(2)}
+        <br>
+
+        Orders: ${c.orders}
+        <br>
+
+        Cash: RM ${c.cash.toFixed(2)}
+        <br>
+
+        TNG: RM ${c.tng.toFixed(2)}
+        <br>
+
+        Shopee: RM ${c.shopee.toFixed(2)}
+
+      </div>
+
+    `;
+
+  });
+
+  document.getElementById("closingHistory")
+    .innerHTML = html;
+
+}
