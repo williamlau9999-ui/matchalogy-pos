@@ -161,21 +161,58 @@ async function loadProducts(){
             priceText.split("RM ")[1]
           );
 
-        selectedProduct = {
+        const category =
+  current.querySelector(".price")
+  .innerText
+  .split("·")[0]
+  .trim()
+  .toLowerCase();
 
-  name,
+if(
+  category === "matcha"
+  ||
+  category === "espresso"
+){
 
-  price
+  selectedProduct = {
+    name,
+    price
+  };
 
-};
+  document.getElementById(
+    "modifierTitle"
+  ).innerText = name;
 
-document.getElementById(
-  "modifierTitle"
-).innerText = name;
+  document.getElementById(
+    "modifierModal"
+  ).style.display = "flex";
 
-document.getElementById(
-  "modifierModal"
-).style.display = "flex";
+}else{
+
+  const existing =
+    cart.find(i=>
+      i.name === name &&
+      !i.milk &&
+      !i.ice
+    );
+
+  if(existing){
+
+    existing.qty += 1;
+
+  }else{
+
+    cart.push({
+      name,
+      price,
+      qty:1
+    });
+
+  }
+
+  renderCart();
+
+}
 
       });
 
@@ -480,6 +517,9 @@ const discount =
     .value
   ) || 0;
 
+const orderNote =
+  document.getElementById("orderNote").value;
+
 const total =
 
   subtotal - discount;
@@ -490,13 +530,14 @@ const orderNo =
   await addDoc(
   collection(db,"orders"),
   {
-    orderNo,
-    items:cart,
-    subtotal,
-    discount,
-    total,
-    payment:method,
-    time:new Date()
+  orderNo,
+  items:cart,
+  subtotal,
+  discount,
+  total,
+  payment:method,
+  note:orderNote,
+  time:new Date()
   }
 );
 
@@ -508,6 +549,8 @@ showReceipt({
 });
 
 alert("Order Done ✅");
+ 
+document.getElementById("orderNote").value = "";
 
 cart = [];
 renderCart();
