@@ -291,23 +291,11 @@ function renderCart(){
 
 <small>
 
-${item.milk}
-
-·
-
-${item.ice}
-
-·
-
-${item.sweet}
-
-<br>
-
-${item.addon}
-
-<br>
-
-${item.note || ""}
+${item.milk ? item.milk + " · " : ""}
+${item.ice ? item.ice + " · " : ""}
+${item.sweet ? item.sweet : ""}
+${item.addon && item.addon !== "None" ? "<br>" + item.addon : ""}
+${item.note ? "<br>Note: " + item.note : ""}
 
 </small>
 
@@ -1143,19 +1131,11 @@ function showReceipt(order){
           <strong>${item.name}</strong>
 
           <small>
-           ${item.milk ? item.milk + " · " : ""}
-           ${item.ice ? item.ice + " · " : ""}
-           ${item.sweet ? item.sweet : ""}
-
-           ${item.addon && item.addon !== "None"
-             ? "<br>" + item.addon
-             : ""
-}
-
-           ${item.note
-             ? "<br>Note: " + item.note
-             : ""
-}
+          ${item.milk ? item.milk + " · " : ""}
+${item.ice ? item.ice + " · " : ""}
+${item.sweet ? item.sweet : ""}
+${item.addon && item.addon !== "None" ? "<br>" + item.addon : ""}
+${item.note ? "<br>Note: " + item.note : ""}
           </small>
         </div>
 
