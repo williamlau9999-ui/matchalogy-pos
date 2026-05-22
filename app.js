@@ -1356,3 +1356,25 @@ document.getElementById(
 ).innerHTML = monthHTML;
 
 }
+
+document.getElementById(
+  "openMonthlyBtn"
+)
+.addEventListener("click",()=>{
+
+  document.getElementById(
+    "monthlyModal"
+  ).style.display = "flex";
+
+});
+
+document.getElementById(
+  "closeMonthlyBtn"
+)
+.addEventListener("click",()=>{
+
+  document.getElementById(
+    "monthlyModal"
+  ).style.display = "none";
+
+});
