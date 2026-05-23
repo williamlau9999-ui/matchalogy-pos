@@ -1268,6 +1268,8 @@ document.getElementById("closeDayBtn")
 
 });
 
+let allClosings = [];
+
 async function loadClosingHistory(){
 
   const snapshot =
@@ -1275,11 +1277,13 @@ async function loadClosingHistory(){
 
   let html = "";
   let monthData = {};
+  allClosings = [];
 
   snapshot.forEach((docSnap)=>{
 
     const c =
       docSnap.data();
+    allClosings.push(c);
 
 const date =
   new Date(c.time.seconds * 1000);
@@ -1376,5 +1380,58 @@ document.getElementById(
   document.getElementById(
     "monthlyModal"
   ).style.display = "none";
+
+});
+
+document.getElementById("closingSearch")
+.addEventListener("input",()=>{
+
+  const keyword =
+    document.getElementById("closingSearch")
+    .value
+    .toLowerCase();
+
+  let html = "";
+
+  allClosings.forEach(c=>{
+
+    const dateText =
+      c.date.toLowerCase();
+
+    if(dateText.includes(keyword)){
+
+      html += `
+
+        <div class="closing-card">
+
+          <strong>${c.date}</strong>
+
+          Revenue: RM ${c.revenue.toFixed(2)}
+          <br>
+
+          Discount: RM ${c.discount.toFixed(2)}
+          <br>
+
+          Orders: ${c.orders}
+          <br>
+
+          Cash: RM ${c.cash.toFixed(2)}
+          <br>
+
+          TNG: RM ${c.tng.toFixed(2)}
+          <br>
+
+          Shopee: RM ${c.shopee.toFixed(2)}
+
+        </div>
+
+      `;
+
+    }
+
+  });
+
+  document.getElementById("closingHistory")
+    .innerHTML = html;
 
 });
