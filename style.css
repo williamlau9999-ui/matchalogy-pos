@@ -312,3 +312,13 @@ button{
 .order-no{
   margin-right:16px;
 }
+
+#monthlyModal .modifier-box{
+  max-height:85vh;
+  overflow:auto;
+}
+
+#closeMonthlyBtn{
+  position:sticky;
+  bottom:0;
+}

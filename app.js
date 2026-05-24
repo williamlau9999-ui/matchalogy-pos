@@ -1325,6 +1325,10 @@ monthData[monthKey] +=
 
         Shopee: RM ${c.shopee.toFixed(2)}
 
+<button onclick="deleteClosing('${docSnap.id}')">
+  Delete
+</button>
+
       </div>
 
     `;
@@ -1435,3 +1439,18 @@ document.getElementById("closingSearch")
     .innerHTML = html;
 
 });
+
+window.deleteClosing = async function(id){
+
+  const ok =
+    confirm("Delete this closing record?");
+
+  if(!ok) return;
+
+  await deleteDoc(
+    doc(db,"closings",id)
+  );
+
+  loadClosingHistory();
+
+}
