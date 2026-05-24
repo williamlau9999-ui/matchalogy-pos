@@ -3,18 +3,17 @@ from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
 import {
   getFirestore,
-collection,
-addDoc,
-getDocs,
-getDoc,
-deleteDoc,
-doc,
-updateDoc,
-query,
-orderBy
+  collection,
+  addDoc,
+  getDocs,
+  getDoc,
+  deleteDoc,
+  doc,
+  updateDoc,
+  query,
+  orderBy
 }
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
 
 // 🔥 FIREBASE CONFIG
 const firebaseConfig = {
@@ -1272,8 +1271,13 @@ let allClosings = [];
 
 async function loadClosingHistory(){
 
-  const snapshot =
-    await getDocs(collection(db,"closings"));
+  const q = query(
+  collection(db,"closings"),
+  orderBy("time","desc")
+);
+
+const snapshot =
+  await getDocs(q);
 
   let html = "";
   let monthData = {};
