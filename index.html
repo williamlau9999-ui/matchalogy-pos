@@ -131,7 +131,15 @@
 
 </div>
 
-    <h2>📊 Dashboard</h2>
+   <div class="dashboard-title">
+
+  <h2>📊 Dashboard</h2>
+
+  <button id="openProductBtn">
+    + Product
+  </button>
+
+</div>
 
 <hr>
 
@@ -196,32 +204,6 @@
   <div>All Time Top Selling</div>
   <div id="topSellingAllTime">-</div>
 </div>
-
-  <h2>➕ Add / Edit Product</h2>
-
-  <input
-    id="name"
-    placeholder="Product Name"
-  />
-
-  <input
-    id="price"
-    placeholder="Price"
-  />
-
-  <input
-    id="category"
-    placeholder="Category"
-  />
-
-  <input
-    id="image"
-    placeholder="Image URL"
-  />
-
-  <button id="saveBtn">
-    Save Product
-  </button>
 
 </div>
 
@@ -344,7 +326,7 @@
 
 <script
   type="module"
-  src="app.js"
+  src="app.js"	
 ></script>
 
 <div
@@ -371,6 +353,158 @@
 
       Close
 
+    </button>
+
+  </div>
+
+</div>
+
+<div
+  id="productModal"
+  class="modifier-modal"
+>
+
+  <div class="modifier-box">
+
+    <h2 id="productModalTitle">
+      Add / Edit Product
+    </h2>
+
+    <input
+      id="name"
+      placeholder="Product Name"
+    />
+
+    <input
+      id="price"
+      placeholder="Price"
+    />
+
+    <input
+      id="category"
+      placeholder="Category"
+    />
+
+    <input
+      id="image"
+      placeholder="Image URL"
+    />
+
+    <div class="modifier-group">
+
+      <label>Show Modifier?</label>
+
+      <select id="modifierEnabled">
+
+        <option value="yes">
+          Yes
+        </option>
+
+        <option value="no">
+          No
+        </option>
+
+      </select>
+
+    </div>
+
+    <div class="modifier-group">
+
+      <label>Default Milk</label>
+
+      <select id="defaultMilk">
+
+        <option>Fresh Milk</option>
+
+        <option>Oat Milk</option>
+
+        <option>Coconut Milk</option>
+
+        <option></option>
+
+      </select>
+
+    </div>
+
+    <div class="modifier-group">
+
+      <label>Default Ice</label>
+
+      <select id="defaultIce">
+
+        <option>Normal Ice</option>
+
+        <option>Less Ice</option>
+
+        <option>No Ice</option>
+
+        <option></option>
+
+      </select>
+
+    </div>
+
+    <div class="modifier-group">
+
+      <label>Default Sweetness</label>
+
+      <select id="defaultSweet">
+
+        <option>100%</option>
+
+        <option>70%</option>
+
+        <option>50%</option>
+
+        <option>30%</option>
+
+        <option>0%</option>
+
+        <option></option>
+
+      </select>
+
+    </div>
+
+    <div class="modifier-group">
+
+      <label>Default Add-on</label>
+
+      <select id="defaultAddon">
+
+        <option value="0">
+          None
+        </option>
+
+        <option value="2">
+          Extra Shot +RM2
+        </option>
+
+        <option value="3">
+          Matcha Foam +RM3
+        </option>
+
+      </select>
+
+    </div>
+
+    <div class="modifier-group">
+
+      <label>Default Product Note</label>
+
+      <textarea
+        id="defaultNote"
+        placeholder="Example: Oat milk only / No modifier needed..."
+      ></textarea>
+
+    </div>
+
+    <button id="saveBtn">
+      Save Product
+    </button>
+
+    <button id="closeProductBtn">
+      Close
     </button>
 
   </div>

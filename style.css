@@ -322,3 +322,20 @@ button{
   position:sticky;
   bottom:0;
 }
+.dashboard-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.dashboard-title h2{
+  margin:0;
+}
+
+#openProductBtn{
+  width:auto;
+  padding:10px 16px;
+  border-radius:999px;
+  font-size:14px;
+}

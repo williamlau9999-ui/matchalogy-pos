@@ -69,9 +69,15 @@ async function loadProducts(){
     html += `
 
       <div
-        class="card"
-        data-id="${docSnap.id}"
-      >
+  class="card"
+  data-id="${docSnap.id}"
+  data-modifier="${p.modifierEnabled ? 'yes' : 'no'}"
+  data-default-milk="${p.defaultMilk || ''}"
+  data-default-ice="${p.defaultIce || ''}"
+  data-default-sweet="${p.defaultSweet || ''}"
+  data-default-addon="${p.defaultAddon || '0'}"
+  data-default-note="${p.defaultNote || ''}"
+>
 
         <img
           src="${p.image || 'https://picsum.photos/300'}"
@@ -94,16 +100,21 @@ async function loadProducts(){
           <div class="actions">
 
             <button
-              class="small-btn edit"
-              data-id="${docSnap.id}"
-              data-name="${p.name}"
-              data-price="${p.price}"
-              data-category="${p.category || ''}"
-              data-image="${p.image || ''}"
-            >
-              Edit
-            </button>
-
+  class="small-btn edit"
+  data-id="${docSnap.id}"
+  data-name="${p.name}"
+  data-price="${p.price}"
+  data-category="${p.category || ''}"
+  data-image="${p.image || ''}"
+  data-modifier="${p.modifierEnabled ? 'yes' : 'no'}"
+  data-default-milk="${p.defaultMilk || ''}"
+  data-default-ice="${p.defaultIce || ''}"
+  data-default-sweet="${p.defaultSweet || ''}"
+  data-default-addon="${p.defaultAddon || '0'}"
+  data-default-note="${p.defaultNote || ''}"
+>
+  Edit
+</button>
             <button
               class="small-btn delete"
               data-delete="${docSnap.id}"
@@ -173,26 +184,48 @@ if(
   category === "espresso"
 ){
 
+  const modifierEnabled =
+  current.dataset.modifier === "yes";
+
+if(modifierEnabled){
+
   selectedProduct = {
     name,
     price
   };
 
-  document.getElementById(
-    "modifierTitle"
-  ).innerText = name;
+  document.getElementById("modifierTitle")
+    .innerText = name;
 
-  document.getElementById(
-    "modifierModal"
-  ).style.display = "flex";
+  document.getElementById("milkSelect")
+    .value = current.dataset.defaultMilk || "Fresh Milk";
+
+  document.getElementById("iceSelect")
+    .value = current.dataset.defaultIce || "Normal Ice";
+
+  document.getElementById("sweetSelect")
+    .value = current.dataset.defaultSweet || "100%";
+
+  document.getElementById("addonSelect")
+    .value = current.dataset.defaultAddon || "0";
+
+  document.getElementById("noteInput")
+    .value = current.dataset.defaultNote || "";
+
+  document.getElementById("modifierModal")
+    .style.display = "flex";
 
 }else{
 
   const existing =
     cart.find(i=>
-      i.name === name &&
-      !i.milk &&
+      i.name === name
+      &&
+      !i.milk
+      &&
       !i.ice
+      &&
+      !i.sweet
     );
 
   if(existing){
@@ -241,27 +274,51 @@ if(
 
   // EDIT PRODUCT
   document.querySelectorAll(".edit")
-    .forEach(btn=>{
+.forEach(btn=>{
 
-      btn.addEventListener("click",()=>{
+  btn.addEventListener("click",()=>{
 
-        editingId = btn.dataset.id;
+    editingId = btn.dataset.id;
 
-        document.getElementById("name")
-          .value = btn.dataset.name;
+    document.getElementById("productModalTitle")
+      .innerText = "Edit Product";
 
-        document.getElementById("price")
-          .value = btn.dataset.price;
+    document.getElementById("name")
+      .value = btn.dataset.name;
 
-        document.getElementById("category")
-          .value = btn.dataset.category;
+    document.getElementById("price")
+      .value = btn.dataset.price;
 
-        document.getElementById("image")
-          .value = btn.dataset.image;
+    document.getElementById("category")
+      .value = btn.dataset.category;
 
-      });
+    document.getElementById("image")
+      .value = btn.dataset.image;
 
-    });
+    document.getElementById("modifierEnabled")
+      .value = btn.dataset.modifier || "no";
+
+    document.getElementById("defaultMilk")
+      .value = btn.dataset.defaultMilk || "";
+
+    document.getElementById("defaultIce")
+      .value = btn.dataset.defaultIce || "";
+
+    document.getElementById("defaultSweet")
+      .value = btn.dataset.defaultSweet || "";
+
+    document.getElementById("defaultAddon")
+      .value = btn.dataset.defaultAddon || "0";
+
+    document.getElementById("defaultNote")
+      .value = btn.dataset.defaultNote || "";
+
+    document.getElementById("productModal")
+      .style.display = "flex";
+
+  });
+
+});
 
 
   // DRAG SORT
@@ -414,6 +471,24 @@ document.getElementById("saveBtn")
   const image =
     document.getElementById("image").value;
 
+const modifierEnabled =
+  document.getElementById("modifierEnabled").value === "yes";
+
+const defaultMilk =
+  document.getElementById("defaultMilk").value;
+
+const defaultIce =
+  document.getElementById("defaultIce").value;
+
+const defaultSweet =
+  document.getElementById("defaultSweet").value;
+
+const defaultAddon =
+  document.getElementById("defaultAddon").value;
+
+const defaultNote =
+  document.getElementById("defaultNote").value;
+
   if(!name || isNaN(price)){
 
     alert("请填完整");
@@ -427,11 +502,17 @@ document.getElementById("saveBtn")
     await updateDoc(
       doc(db,"products",editingId),
       {
-        name,
-        price,
-        category,
-        image
-      }
+  name,
+  price,
+  category,
+  image,
+  modifierEnabled,
+  defaultMilk,
+  defaultIce,
+  defaultSweet,
+  defaultAddon,
+  defaultNote
+}
     );
 
     editingId = null;
@@ -443,12 +524,18 @@ document.getElementById("saveBtn")
     await addDoc(
       collection(db,"products"),
       {
-        name,
-        price,
-        category,
-        image,
-        sort: Date.now()
-      }
+  name,
+  price,
+  category,
+  image,
+  modifierEnabled,
+  defaultMilk,
+  defaultIce,
+  defaultSweet,
+  defaultAddon,
+  defaultNote,
+  sort: Date.now()
+}
     );
 
     alert("Added ✅");
@@ -462,6 +549,9 @@ document.getElementById("saveBtn")
   document.getElementById("category").value = "";
 
   document.getElementById("image").value = "";
+
+  document.getElementById("productModal")
+  .style.display = "none";
 
   loadProducts();
 
@@ -1458,3 +1548,36 @@ window.deleteClosing = async function(id){
   loadClosingHistory();
 
 }
+
+document.getElementById("openProductBtn")
+.addEventListener("click",()=>{
+
+  editingId = null;
+
+  document.getElementById("productModalTitle")
+    .innerText = "Add Product";
+
+  document.getElementById("name").value = "";
+  document.getElementById("price").value = "";
+  document.getElementById("category").value = "";
+  document.getElementById("image").value = "";
+
+  document.getElementById("modifierEnabled").value = "no";
+  document.getElementById("defaultMilk").value = "";
+  document.getElementById("defaultIce").value = "";
+  document.getElementById("defaultSweet").value = "";
+  document.getElementById("defaultAddon").value = "0";
+  document.getElementById("defaultNote").value = "";
+
+  document.getElementById("productModal")
+    .style.display = "flex";
+
+});
+
+document.getElementById("closeProductBtn")
+.addEventListener("click",()=>{
+
+  document.getElementById("productModal")
+    .style.display = "none";
+
+});
