@@ -15,120 +15,241 @@ import {
 }
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+
 // 🔥 FIREBASE CONFIG
 const firebaseConfig = {
-    apiKey: "AIzaSyD1ggANpmGObfPNaD0aFK9ZdM_hvyEFh2A",
-    authDomain: "matchalogy--pos.firebaseapp.com",
-    projectId: "matchalogy--pos",
-    storageBucket: "matchalogy--pos.firebasestorage.app",
-    messagingSenderId: "409490156449",
-    appId: "1:409490156449:web:b7583414b5c16dca9f39e0",
-    measurementId: "G-M6CY1YCQCT"
-  };
+  apiKey: "AIzaSyD1ggANpmGObfPNaD0aFK9ZdM_hvyEFh2A",
+  authDomain: "matchalogy--pos.firebaseapp.com",
+  projectId: "matchalogy--pos",
+  storageBucket: "matchalogy--pos.firebasestorage.app",
+  messagingSenderId: "409490156449",
+  appId: "1:409490156449:web:b7583414b5c16dca9f39e0",
+  measurementId: "G-M6CY1YCQCT"
+};
 
 
 const app = initializeApp(firebaseConfig);
-
 const db = getFirestore(app);
 
 
 let cart = [];
-
 let editingId = null;
-
 let currentCategory = "all";
 let selectedProduct = null;
+let sortableInstance = null;
+let allClosings = [];
 
 
-// LOAD PRODUCTS
+// ---------- HELPERS ----------
+
+function $(id){
+  return document.getElementById(id);
+}
+
+function getValue(id){
+  return $(id) ? $(id).value : "";
+}
+
+function setValue(id,value){
+  if($(id)){
+    $(id).value = value ?? "";
+  }
+}
+
+function setText(id,value){
+  if($(id)){
+    $(id).innerText = value;
+  }
+}
+
+function setHTML(id,value){
+  if($(id)){
+    $(id).innerHTML = value;
+  }
+}
+
+function show(id){
+  if($(id)){
+    $(id).style.display = "flex";
+  }
+}
+
+function hide(id){
+  if($(id)){
+    $(id).style.display = "none";
+  }
+}
+
+function escapeHTML(value){
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function toDate(value){
+
+  if(!value){
+    return new Date();
+  }
+
+  if(value.seconds){
+    return new Date(value.seconds * 1000);
+  }
+
+  if(value.toDate){
+    return value.toDate();
+  }
+
+  return new Date(value);
+
+}
+
+function money(value){
+  return (Number(value) || 0).toFixed(2);
+}
+
+function getModifierHTML(item){
+
+  const main =
+    [
+      item.milk,
+      item.ice,
+      item.sweet
+    ]
+    .filter(Boolean)
+    .join(" · ");
+
+  let html = "";
+
+  if(main){
+    html += main;
+  }
+
+  if(
+    item.addon
+    &&
+    item.addon !== "None"
+  ){
+    html += `${html ? "<br>" : ""}${escapeHTML(item.addon)}`;
+  }
+
+  if(item.note){
+    html += `${html ? "<br>" : ""}Note: ${escapeHTML(item.note)}`;
+  }
+
+  return html;
+
+}
+
+
+// ---------- PRODUCTS ----------
+
 async function loadProducts(){
 
   const snapshot =
-  await getDocs(collection(db,"products"));
+    await getDocs(collection(db,"products"));
 
-let productList = [];
+  let productList = [];
 
-snapshot.forEach((docSnap)=>{
+  snapshot.forEach((docSnap)=>{
 
-  productList.push({
-    id:docSnap.id,
-    ...docSnap.data()
+    productList.push({
+      id: docSnap.id,
+      ...docSnap.data()
+    });
+
   });
 
-});
+  productList.sort((a,b)=>{
 
-productList.sort((a,b)=>{
+    const sortA =
+      Number(a.sort ?? 9999999999999);
 
-  return (a.sort || 9999999999999) - (b.sort || 9999999999999);
+    const sortB =
+      Number(b.sort ?? 9999999999999);
 
-});
+    return sortA - sortB;
+
+  });
+
   let html = "";
 
   productList.forEach((p)=>{
 
-    const p = docSnap.data();
+    const category =
+      String(p.category || "")
+      .toLowerCase();
 
     if(
       currentCategory !== "all"
       &&
-      p.category?.toLowerCase()
-      !== currentCategory
+      category !== currentCategory
     ){
       return;
     }
 
+    const price =
+      Number(p.price) || 0;
+
     html += `
 
       <div
-  class="card"
-  data-id="${p.id}"
-  data-modifier="${p.modifierEnabled ? 'yes' : 'no'}"
-  data-default-milk="${p.defaultMilk || ''}"
-  data-default-ice="${p.defaultIce || ''}"
-  data-default-sweet="${p.defaultSweet || ''}"
-  data-default-addon="${p.defaultAddon || '0'}"
-  data-default-note="${p.defaultNote || ''}"
->
+        class="card"
+        data-id="${escapeHTML(p.id)}"
+        data-name="${escapeHTML(p.name || "")}"
+        data-price="${price}"
+        data-category="${escapeHTML(p.category || "")}"
+        data-modifier="${p.modifierEnabled ? "yes" : "no"}"
+        data-default-milk="${escapeHTML(p.defaultMilk || "")}"
+        data-default-ice="${escapeHTML(p.defaultIce || "")}"
+        data-default-sweet="${escapeHTML(p.defaultSweet || "")}"
+        data-default-addon="${escapeHTML(p.defaultAddon || "0")}"
+        data-default-note="${escapeHTML(p.defaultNote || "")}"
+      >
 
         <img
-          src="${p.image || 'https://picsum.photos/300'}"
+          src="${escapeHTML(p.image || "./logo.png")}"
         >
 
         <div class="card-body">
 
-<div class="drag-handle">
-☰
-</div>
+          <div class="drag-handle">
+            ☰
+          </div>
 
           <div class="name">
-            ${p.name}
+            ${escapeHTML(p.name || "")}
           </div>
 
           <div class="price">
-            ${p.category || "Menu"} · RM ${p.price}
+            ${escapeHTML(p.category || "Menu")} · RM ${price}
           </div>
 
           <div class="actions">
 
             <button
-  class="small-btn edit"
-  data-id="${p.id}"
-  data-name="${p.name}"
-  data-price="${p.price}"
-  data-category="${p.category || ''}"
-  data-image="${p.image || ''}"
-  data-modifier="${p.modifierEnabled ? 'yes' : 'no'}"
-  data-default-milk="${p.defaultMilk || ''}"
-  data-default-ice="${p.defaultIce || ''}"
-  data-default-sweet="${p.defaultSweet || ''}"
-  data-default-addon="${p.defaultAddon || '0'}"
-  data-default-note="${p.defaultNote || ''}"
->
-  Edit
-</button>
+              class="small-btn edit"
+              data-id="${escapeHTML(p.id)}"
+              data-name="${escapeHTML(p.name || "")}"
+              data-price="${price}"
+              data-category="${escapeHTML(p.category || "")}"
+              data-image="${escapeHTML(p.image || "")}"
+              data-modifier="${p.modifierEnabled ? "yes" : "no"}"
+              data-default-milk="${escapeHTML(p.defaultMilk || "")}"
+              data-default-ice="${escapeHTML(p.defaultIce || "")}"
+              data-default-sweet="${escapeHTML(p.defaultSweet || "")}"
+              data-default-addon="${escapeHTML(p.defaultAddon || "0")}"
+              data-default-note="${escapeHTML(p.defaultNote || "")}"
+            >
+              Edit
+            </button>
+
             <button
               class="small-btn delete"
-              data-delete="${p.id}"
+              data-delete="${escapeHTML(p.id)}"
             >
               Delete
             </button>
@@ -140,93 +261,228 @@ productList.sort((a,b)=>{
       </div>
 
     `;
+
   });
 
-  document.getElementById("products")
-    .innerHTML = html;
+  setHTML("products",html);
+
+  bindProductClicks();
+  bindProductActions();
+  initSortable();
+
+}
 
 
-  // ADD TO CART
+function bindProductClicks(){
+
   document.querySelectorAll(".card")
-    .forEach((card,index)=>{
+  .forEach((card)=>{
 
-     card.addEventListener("click",(e)=>{
+    card.addEventListener("click",(e)=>{
+
+      if(
+        e.target.classList.contains("edit")
+        ||
+        e.target.classList.contains("delete")
+        ||
+        e.target.classList.contains("drag-handle")
+      ){
+        return;
+      }
+
+      const name =
+        card.dataset.name;
+
+      const price =
+        Number(card.dataset.price) || 0;
+
+      const modifierEnabled =
+        card.dataset.modifier === "yes";
+
+      if(modifierEnabled){
+
+        selectedProduct = {
+          name,
+          price
+        };
+
+        setText("modifierTitle",name);
+
+        setValue(
+          "milkSelect",
+          card.dataset.defaultMilk || "Fresh Milk"
+        );
+
+        setValue(
+          "iceSelect",
+          card.dataset.defaultIce || "Normal Ice"
+        );
+
+        setValue(
+          "sweetSelect",
+          card.dataset.defaultSweet || "100%"
+        );
+
+        setValue(
+          "addonSelect",
+          card.dataset.defaultAddon || "0"
+        );
+
+        setValue(
+          "noteInput",
+          card.dataset.defaultNote || ""
+        );
+
+        show("modifierModal");
+
+      }else{
+
+        addPlainCartItem(name,price);
+
+      }
+
+    });
+
+  });
+
+}
+
+
+function bindProductActions(){
+
+  document.querySelectorAll("[data-delete]")
+  .forEach(btn=>{
+
+    btn.addEventListener("click",async()=>{
+
+      const ok =
+        confirm("Delete this product?");
+
+      if(!ok) return;
+
+      await deleteDoc(
+        doc(db,"products",btn.dataset.delete)
+      );
+
+      loadProducts();
+
+    });
+
+  });
+
+
+  document.querySelectorAll(".edit")
+  .forEach(btn=>{
+
+    btn.addEventListener("click",()=>{
+
+      editingId =
+        btn.dataset.id;
+
+      setText(
+        "productModalTitle",
+        "Edit Product"
+      );
+
+      setValue("name",btn.dataset.name);
+      setValue("price",btn.dataset.price);
+      setValue("category",btn.dataset.category);
+      setValue("image",btn.dataset.image);
+
+      setValue(
+        "modifierEnabled",
+        btn.dataset.modifier || "no"
+      );
+
+      setValue(
+        "defaultMilk",
+        btn.dataset.defaultMilk || ""
+      );
+
+      setValue(
+        "defaultIce",
+        btn.dataset.defaultIce || ""
+      );
+
+      setValue(
+        "defaultSweet",
+        btn.dataset.defaultSweet || ""
+      );
+
+      setValue(
+        "defaultAddon",
+        btn.dataset.defaultAddon || "0"
+      );
+
+      setValue(
+        "defaultNote",
+        btn.dataset.defaultNote || ""
+      );
+
+      show("productModal");
+
+    });
+
+  });
+
+}
+
+
+function initSortable(){
+
+  const productsEl =
+    $("products");
 
   if(
-    e.target.classList.contains("drag-handle")
-  ){
-    return;
-  }
-
-  if(
-    e.target.classList.contains("edit")
+    !productsEl
     ||
-    e.target.classList.contains("delete")
+    typeof Sortable === "undefined"
   ){
     return;
   }
 
-        const current =
-          document.querySelectorAll(".card")[index];
+  if(sortableInstance){
+    sortableInstance.destroy();
+  }
 
-        const name =
-          current.querySelector(".name")
-          .innerText;
+  sortableInstance =
+    new Sortable(
+      productsEl,
+      {
+        handle:".drag-handle",
+        animation:150,
+        ghostClass:"dragging",
 
-        const priceText =
-          current.querySelector(".price")
-          .innerText;
+        onEnd: async ()=>{
 
-        const price =
-          parseFloat(
-            priceText.split("RM ")[1]
-          );
+          const cards =
+            document.querySelectorAll(".card");
 
-        const category =
-  current.querySelector(".price")
-  .innerText
-  .split("·")[0]
-  .trim()
-  .toLowerCase();
+          for(let i=0;i<cards.length;i++){
 
-if(
-  category === "matcha"
-  ||
-  category === "espresso"
-){
+            const id =
+              cards[i].dataset.id;
 
-  const modifierEnabled =
-  current.dataset.modifier === "yes";
+            await updateDoc(
+              doc(db,"products",id),
+              {
+                sort:i
+              }
+            );
 
-if(modifierEnabled){
+          }
 
-  selectedProduct = {
-    name,
-    price
-  };
+        }
 
-  document.getElementById("modifierTitle")
-    .innerText = name;
+      }
+    );
 
-  document.getElementById("milkSelect")
-    .value = current.dataset.defaultMilk || "Fresh Milk";
+}
 
-  document.getElementById("iceSelect")
-    .value = current.dataset.defaultIce || "Normal Ice";
 
-  document.getElementById("sweetSelect")
-    .value = current.dataset.defaultSweet || "100%";
+// ---------- CART ----------
 
-  document.getElementById("addonSelect")
-    .value = current.dataset.defaultAddon || "0";
-
-  document.getElementById("noteInput")
-    .value = current.dataset.defaultNote || "";
-
-  document.getElementById("modifierModal")
-    .style.display = "flex";
-
-}else{
+function addPlainCartItem(name,price){
 
   const existing =
     cart.find(i=>
@@ -237,6 +493,10 @@ if(modifierEnabled){
       !i.ice
       &&
       !i.sweet
+      &&
+      !i.addon
+      &&
+      !i.note
     );
 
   if(existing){
@@ -257,117 +517,44 @@ if(modifierEnabled){
 
 }
 
-      });
 
-    });
-
-
-  // DELETE PRODUCT
-  document.querySelectorAll("[data-delete]")
-    .forEach(btn=>{
-
-      btn.addEventListener("click",async()=>{
-
-        await deleteDoc(
-          doc(
-            db,
-            "products",
-            btn.dataset.delete
-          )
-        );
-
-        loadProducts();
-
-      });
-
-    });
-
-
-  // EDIT PRODUCT
-  document.querySelectorAll(".edit")
-.forEach(btn=>{
-
-  btn.addEventListener("click",()=>{
-
-    editingId = btn.dataset.id;
-
-    document.getElementById("productModalTitle")
-      .innerText = "Edit Product";
-
-    document.getElementById("name")
-      .value = btn.dataset.name;
-
-    document.getElementById("price")
-      .value = btn.dataset.price;
-
-    document.getElementById("category")
-      .value = btn.dataset.category;
-
-    document.getElementById("image")
-      .value = btn.dataset.image;
-
-    document.getElementById("modifierEnabled")
-      .value = btn.dataset.modifier || "no";
-
-    document.getElementById("defaultMilk")
-      .value = btn.dataset.defaultMilk || "";
-
-    document.getElementById("defaultIce")
-      .value = btn.dataset.defaultIce || "";
-
-    document.getElementById("defaultSweet")
-      .value = btn.dataset.defaultSweet || "";
-
-    document.getElementById("defaultAddon")
-      .value = btn.dataset.defaultAddon || "0";
-
-    document.getElementById("defaultNote")
-      .value = btn.dataset.defaultNote || "";
-
-    document.getElementById("productModal")
-      .style.display = "flex";
-
-  });
-
-});
-
-
-  // DRAG SORT
-
-}
-
-
-// RENDER CART
 function renderCart(){
 
   let html = "";
-
-  let total = 0;
+  let subtotal = 0;
 
   cart.forEach((item,index)=>{
 
-    total += item.price * item.qty;
+    const lineTotal =
+      (Number(item.price) || 0)
+      *
+      (Number(item.qty) || 0);
+
+    subtotal += lineTotal;
+
+    const modifierHTML =
+      getModifierHTML(item);
 
     html += `
 
       <li>
 
-     ${item.name}
+        <strong>
+          ${escapeHTML(item.name)}
+        </strong>
 
-<br>
+        ${modifierHTML ? `
+          <br>
+          <small>
+            ${modifierHTML}
+          </small>
+        ` : ""}
 
-<small>
+        <br><br>
 
-${item.milk ? item.milk + " · " : ""}
-${item.ice ? item.ice + " · " : ""}
-${item.sweet ? item.sweet : ""}
-${item.addon && item.addon !== "None" ? "<br>" + item.addon : ""}
-${item.note ? "<br>Note: " + item.note : ""}
-
-</small>
-
-x${item.qty}
-        - RM${(item.price * item.qty).toFixed(2)}
+        x${item.qty}
+        -
+        RM${money(lineTotal)}
 
         <button
           class="remove-btn minus-btn"
@@ -393,194 +580,333 @@ x${item.qty}
       </li>
 
     `;
+
   });
 
-  document.getElementById("cart")
-    .innerHTML = html;
+  setHTML("cart",html);
 
-  document.getElementById("total")
-    .innerText = total.toFixed(2);
+  const discount =
+    Number(getValue("discount")) || 0;
+
+  const total =
+    Math.max(
+      0,
+      subtotal - discount
+    );
+
+  setText(
+    "total",
+    money(total)
+  );
 
 
-  // MINUS
   document.querySelectorAll(".minus-btn")
-    .forEach(btn=>{
+  .forEach(btn=>{
 
-      btn.addEventListener("click",()=>{
+    btn.addEventListener("click",()=>{
 
-        const index =
-          btn.dataset.index;
+      const index =
+        Number(btn.dataset.index);
 
-        cart[index].qty -= 1;
+      cart[index].qty -= 1;
 
-        if(cart[index].qty <= 0){
+      if(cart[index].qty <= 0){
 
-          cart.splice(index,1);
+        cart.splice(index,1);
 
-        }
+      }
 
-        renderCart();
-
-      });
+      renderCart();
 
     });
 
+  });
 
-  // PLUS
+
   document.querySelectorAll(".plus-btn")
-    .forEach(btn=>{
+  .forEach(btn=>{
 
-      btn.addEventListener("click",()=>{
+    btn.addEventListener("click",()=>{
 
-        const index =
-          btn.dataset.index;
+      const index =
+        Number(btn.dataset.index);
 
-        cart[index].qty += 1;
+      cart[index].qty += 1;
 
-        renderCart();
-
-      });
+      renderCart();
 
     });
 
+  });
 
-  // DELETE CART
+
   document.querySelectorAll(".delete-cart-btn")
-    .forEach(btn=>{
+  .forEach(btn=>{
 
-      btn.addEventListener("click",()=>{
+    btn.addEventListener("click",()=>{
 
-        cart.splice(
-          btn.dataset.index,
-          1
-        );
+      cart.splice(
+        Number(btn.dataset.index),
+        1
+      );
 
-        renderCart();
-
-      });
+      renderCart();
 
     });
 
+  });
+
 }
 
 
-// SAVE PRODUCT
-document.getElementById("saveBtn")
-.addEventListener("click",async()=>{
+// ---------- MODIFIER ----------
 
-  const name =
-    document.getElementById("name").value;
+if($("addModifierBtn")){
 
-  const price =
-    parseFloat(
-      document.getElementById("price").value
-    );
+  $("addModifierBtn")
+  .addEventListener("click",()=>{
 
-  const category =
-    document.getElementById("category").value;
+    if(!selectedProduct){
+      return;
+    }
 
-  const image =
-    document.getElementById("image").value;
+    const milk =
+      getValue("milkSelect");
 
-const modifierEnabled =
-  document.getElementById("modifierEnabled").value === "yes";
+    const ice =
+      getValue("iceSelect");
 
-const defaultMilk =
-  document.getElementById("defaultMilk").value;
+    const sweet =
+      getValue("sweetSelect");
 
-const defaultIce =
-  document.getElementById("defaultIce").value;
+    const addonPrice =
+      Number(getValue("addonSelect")) || 0;
 
-const defaultSweet =
-  document.getElementById("defaultSweet").value;
+    const addonSelect =
+      $("addonSelect");
 
-const defaultAddon =
-  document.getElementById("defaultAddon").value;
+    const addonName =
+      addonSelect
+      ?
+      addonSelect.selectedOptions[0].text.trim()
+      :
+      "None";
 
-const defaultNote =
-  document.getElementById("defaultNote").value;
+    const note =
+      getValue("noteInput");
 
-  if(!name || isNaN(price)){
+    const finalPrice =
+      (Number(selectedProduct.price) || 0)
+      +
+      addonPrice;
 
-    alert("请填完整");
+    const existing =
+      cart.find(i=>
 
-    return;
+        i.name === selectedProduct.name
+        &&
+        i.milk === milk
+        &&
+        i.ice === ice
+        &&
+        i.sweet === sweet
+        &&
+        i.addon === addonName
+        &&
+        i.note === note
+        &&
+        Number(i.price) === Number(finalPrice)
 
-  }
+      );
 
-  if(editingId){
+    if(existing){
 
-    await updateDoc(
-      doc(db,"products",editingId),
-      {
-  name,
-  price,
-  category,
-  image,
-  modifierEnabled,
-  defaultMilk,
-  defaultIce,
-  defaultSweet,
-  defaultAddon,
-  defaultNote
+      existing.qty += 1;
+
+    }else{
+
+      cart.push({
+        name:selectedProduct.name,
+        price:finalPrice,
+        qty:1,
+        milk,
+        ice,
+        sweet,
+        addon:addonName,
+        note
+      });
+
+    }
+
+    renderCart();
+
+    hide("modifierModal");
+
+  });
+
 }
-    );
+
+
+// ---------- PRODUCT MODAL + SAVE PRODUCT ----------
+
+if($("openProductBtn")){
+
+  $("openProductBtn")
+  .addEventListener("click",()=>{
 
     editingId = null;
 
-    alert("Updated ✅");
-
-  }else{
-
-    await addDoc(
-      collection(db,"products"),
-      {
-  name,
-  price,
-  category,
-  image,
-  modifierEnabled,
-  defaultMilk,
-  defaultIce,
-  defaultSweet,
-  defaultAddon,
-  defaultNote,
-  sort: Date.now()
-}
+    setText(
+      "productModalTitle",
+      "Add Product"
     );
 
-    alert("Added ✅");
+    setValue("name","");
+    setValue("price","");
+    setValue("category","");
+    setValue("image","");
 
-  }
+    setValue("modifierEnabled","no");
+    setValue("defaultMilk","");
+    setValue("defaultIce","");
+    setValue("defaultSweet","");
+    setValue("defaultAddon","0");
+    setValue("defaultNote","");
 
-  document.getElementById("name").value = "";
+    show("productModal");
 
-  document.getElementById("price").value = "";
+  });
 
-  document.getElementById("category").value = "";
-
-  document.getElementById("image").value = "";
-
-  document.getElementById("productModal")
-  .style.display = "none";
-
-  loadProducts();
-
-});
-
-
-// CLEAR CART
-document.getElementById("clearCartBtn")
-.addEventListener("click",()=>{
-
-  cart = [];
-
-  renderCart();
-
-});
+}
 
 
-// CHECKOUT
+if($("closeProductBtn")){
+
+  $("closeProductBtn")
+  .addEventListener("click",()=>{
+
+    hide("productModal");
+
+  });
+
+}
+
+
+if($("saveBtn")){
+
+  $("saveBtn")
+  .addEventListener("click",async()=>{
+
+    const name =
+      getValue("name").trim();
+
+    const price =
+      Number(getValue("price"));
+
+    const category =
+      getValue("category").trim();
+
+    const image =
+      getValue("image").trim();
+
+    const modifierEnabled =
+      getValue("modifierEnabled") === "yes";
+
+    const defaultMilk =
+      getValue("defaultMilk");
+
+    const defaultIce =
+      getValue("defaultIce");
+
+    const defaultSweet =
+      getValue("defaultSweet");
+
+    const defaultAddon =
+      getValue("defaultAddon") || "0";
+
+    const defaultNote =
+      getValue("defaultNote");
+
+    if(
+      !name
+      ||
+      isNaN(price)
+    ){
+
+      alert("请填完整商品名称和价格");
+
+      return;
+
+    }
+
+    const productData = {
+      name,
+      price,
+      category,
+      image,
+      modifierEnabled,
+      defaultMilk,
+      defaultIce,
+      defaultSweet,
+      defaultAddon,
+      defaultNote
+    };
+
+    if(editingId){
+
+      await updateDoc(
+        doc(db,"products",editingId),
+        productData
+      );
+
+      editingId = null;
+
+      alert("Updated ✅");
+
+    }else{
+
+      await addDoc(
+        collection(db,"products"),
+        {
+          ...productData,
+          sort: Date.now()
+        }
+      );
+
+      alert("Added ✅");
+
+    }
+
+    setValue("name","");
+    setValue("price","");
+    setValue("category","");
+    setValue("image","");
+    setValue("defaultNote","");
+
+    hide("productModal");
+
+    loadProducts();
+
+  });
+
+}
+
+
+// ---------- CHECKOUT ----------
+
+if($("clearCartBtn")){
+
+  $("clearCartBtn")
+  .addEventListener("click",()=>{
+
+    cart = [];
+    renderCart();
+
+  });
+
+}
+
+
 async function checkout(method){
 
   if(cart.length === 0){
@@ -591,89 +917,115 @@ async function checkout(method){
 
   }
 
+  const orderNo =
+    Date.now()
+    .toString()
+    .slice(-6);
+
+  const orderNote =
+    getValue("orderNote");
+
   const subtotal =
+    cart.reduce(
+      (s,i)=>
+        s
+        +
+        (
+          (Number(i.price) || 0)
+          *
+          (Number(i.qty) || 0)
+        ),
+      0
+    );
 
-  cart.reduce(
-    (s,i)=>s+(i.price*i.qty),
-    0
-  );
+  const discount =
+    Number(getValue("discount")) || 0;
 
-const discount =
+  const total =
+    Math.max(
+      0,
+      subtotal - discount
+    );
 
-  Number(
-    document.getElementById("discount")
-    .value
-  ) || 0;
-
-const orderNote =
-  document.getElementById("orderNote").value;
-
-const total =
-
-  subtotal - discount;
-
-const orderNo =
-  Date.now().toString().slice(-6);
+  const orderData = {
+    orderNo,
+    items:cart,
+    subtotal,
+    discount,
+    total,
+    payment:method,
+    note:orderNote,
+    time:new Date()
+  };
 
   await addDoc(
-  collection(db,"orders"),
-  {
-  orderNo,
-  items:cart,
-  subtotal,
-  discount,
-  total,
-  payment:method,
-  note:orderNote,
-  time:new Date()
-  }
-);
+    collection(db,"orders"),
+    orderData
+  );
 
-showReceipt({
-  orderNo,
-  items: cart,
-  subtotal,
-  discount,
-  total,
-  payment: method,
-  note: orderNote
-});
+  showReceipt(orderData);
 
-alert("Order Done ✅");
- 
-document.getElementById("orderNote").value = "";
+  cart = [];
 
-cart = [];
-renderCart();
-loadDashboard();
+  setValue("discount","");
+  setValue("orderNote","");
+
+  renderCart();
+  loadDashboard();
 
 }
 
 
-// PAYMENT
-document.getElementById("cashBtn")
-.addEventListener("click",()=>{
+if($("cashBtn")){
 
-  checkout("Cash");
+  $("cashBtn")
+  .addEventListener("click",()=>{
 
-});
+    checkout("Cash");
 
-document.getElementById("tngBtn")
-.addEventListener("click",()=>{
+  });
 
-  checkout("TNG");
-
-});
-
-document.getElementById("ShopeeBtn")
-.addEventListener("click",()=>{
-
-  checkout("Shopee");
-
-});
+}
 
 
-// CATEGORY TAB
+if($("tngBtn")){
+
+  $("tngBtn")
+  .addEventListener("click",()=>{
+
+    checkout("TNG");
+
+  });
+
+}
+
+
+if($("ShopeeBtn")){
+
+  $("ShopeeBtn")
+  .addEventListener("click",()=>{
+
+    checkout("Shopee");
+
+  });
+
+}
+
+
+if($("discount")){
+
+  $("discount")
+  .addEventListener("input",()=>{
+
+    renderCart();
+
+  });
+
+}
+
+
+// ---------- CATEGORY TABS ----------
+
 document.querySelectorAll(".tab")
 .forEach(tab=>{
 
@@ -698,7 +1050,8 @@ document.querySelectorAll(".tab")
 });
 
 
-// DASHBOARD
+// ---------- DASHBOARD ----------
+
 function renderTopSelling(data){
 
   const sorted =
@@ -713,20 +1066,21 @@ function renderTopSelling(data){
   return sorted
     .map((item,index)=>`
       <div>
-        ${index + 1}. ${item[0]} x${item[1]}
+        ${index + 1}. ${escapeHTML(item[0])} x${item[1]}
       </div>
     `)
     .join("");
 
 }
 
+
 async function loadDashboard(){
 
-
-  const q = query(
-    collection(db,"orders"),
-    orderBy("time","desc")
-  );
+  const q =
+    query(
+      collection(db,"orders"),
+      orderBy("time","desc")
+    );
 
   const snapshot =
     await getDocs(q);
@@ -752,19 +1106,18 @@ async function loadDashboard(){
     const order =
       docSnap.data();
 
-order.items.forEach(item=>{
-
-  topAllTime[item.name] =
-    (topAllTime[item.name] || 0) + item.qty;
-
-});
-
     const orderDate =
-      new Date(
-        order.time.seconds * 1000
-      );
+      toDate(order.time);
 
-    // ✅ This Month Top Selling
+    order.items.forEach(item=>{
+
+      topAllTime[item.name] =
+        (topAllTime[item.name] || 0)
+        +
+        (Number(item.qty) || 0);
+
+    });
+
     if(
       orderDate.getMonth() === now.getMonth()
       &&
@@ -774,52 +1127,54 @@ order.items.forEach(item=>{
       order.items.forEach(item=>{
 
         topMonth[item.name] =
-          (topMonth[item.name] || 0) + item.qty;
+          (topMonth[item.name] || 0)
+          +
+          (Number(item.qty) || 0);
 
       });
 
     }
 
-    // ✅ Today Dashboard
     if(
       orderDate.toDateString()
       === today
     ){
 
-      revenue += order.total;
+      revenue +=
+        Number(order.total) || 0;
 
       count += 1;
 
       discountTotal +=
-        order.discount || 0;
-
-      order.items.forEach(item=>{
-
-        topToday[item.name] =
-          (topToday[item.name] || 0) + item.qty;
-
-      });
+        Number(order.discount) || 0;
 
       let itemsHTML = "";
 
       order.items.forEach(item=>{
 
-       itemsHTML += `
-  <div>
-    ${item.name} x${item.qty}
+        const modifierHTML =
+          getModifierHTML(item);
 
-    ${item.milk || item.ice || item.sweet || item.addon || item.note ? `
-      <small>
-        <br>
-        ${item.milk ? item.milk + " · " : ""}
-        ${item.ice ? item.ice + " · " : ""}
-        ${item.sweet ? item.sweet : ""}
-        ${item.addon && item.addon !== "None" ? "<br>" + item.addon : ""}
-        ${item.note ? "<br>Note: " + item.note : ""}
-      </small>
-    ` : ""}
-  </div>
-`;
+        itemsHTML += `
+
+          <div>
+            ${escapeHTML(item.name)} x${item.qty}
+
+            ${modifierHTML ? `
+              <small>
+                <br>
+                ${modifierHTML}
+              </small>
+            ` : ""}
+
+          </div>
+
+        `;
+
+        topToday[item.name] =
+          (topToday[item.name] || 0)
+          +
+          (Number(item.qty) || 0);
 
       });
 
@@ -833,17 +1188,17 @@ order.items.forEach(item=>{
           >
 
             <div>
-  <span class="order-no">
-    ${order.orderNo ? "#" + order.orderNo : ""}
-  </span>
+              <span class="order-no">
+                ${order.orderNo ? "#" + order.orderNo : ""}
+              </span>
 
-  <span class="order-clock">
-    ${orderDate.toLocaleTimeString()}
-  </span>
-</div>
+              <span class="order-clock">
+                ${orderDate.toLocaleTimeString()}
+              </span>
+            </div>
 
             <div>
-              RM ${order.total.toFixed(2)}
+              RM ${money(order.total)}
             </div>
 
           </div>
@@ -856,16 +1211,20 @@ order.items.forEach(item=>{
             ${itemsHTML}
 
             <div class="order-payment">
-  ${order.payment}
-  ${order.discount > 0
-    ? `<br>Discount: RM ${order.discount.toFixed(2)}`
-    : ""
-  }
-  ${order.note
-    ? `<br>Note: ${order.note}`
-    : ""
-  }
-</div>
+
+              ${escapeHTML(order.payment || "")}
+
+              ${order.discount > 0
+                ? `<br>Discount: RM ${money(order.discount)}`
+                : ""
+              }
+
+              ${order.note
+                ? `<br>Note: ${escapeHTML(order.note)}`
+                : ""
+              }
+
+            </div>
 
             <div class="order-actions">
 
@@ -893,94 +1252,53 @@ order.items.forEach(item=>{
 
   });
 
-  document.getElementById("todayRevenue")
-    .innerText = revenue.toFixed(2);
+  setText("todayRevenue",money(revenue));
+  setText("todayOrders",count);
+  setText("todayDiscount",money(discountTotal));
 
-  document.getElementById("todayOrders")
-    .innerText = count;
+  setHTML("ordersList",ordersHTML);
 
-  document.getElementById("todayDiscount")
-    .innerText = discountTotal.toFixed(2);
+  setHTML(
+    "topSellingToday",
+    renderTopSelling(topToday)
+  );
 
-  document.getElementById("ordersList")
-    .innerHTML = ordersHTML;
+  setHTML(
+    "topSellingMonth",
+    renderTopSelling(topMonth)
+  );
 
-  document.getElementById("topSellingToday")
-    .innerHTML = renderTopSelling(topToday);
+  setHTML(
+    "topSellingAllTime",
+    renderTopSelling(topAllTime)
+  );
 
-  document.getElementById("topSellingMonth")
-    .innerHTML = renderTopSelling(topMonth);
-
-  document.getElementById("topSellingAllTime")
-    .innerHTML = renderTopSelling(topAllTime);
 }
 
-loadProducts();
 
-loadDashboard();
-
-loadClosingHistory();
-
-  new Sortable(
-
-  document.getElementById("products"),
-
-  {
-
-    handle:".drag-handle",
-
-    animation:150,
-
-    ghostClass:"dragging",
-
-    onEnd: async ()=>{
-
-      const cards =
-        document.querySelectorAll(".card");
-
-      for(let i=0;i<cards.length;i++){
-
-        const id =
-          cards[i].dataset.id;
-
-        await updateDoc(
-          doc(db,"products",id),
-          {
-            sort:i
-          }
-        );
-
-      }
-
-    }
-
-  }
-
-);
 window.toggleOrder = function(id){
 
   const el =
-    document.getElementById(
-      `order-${id}`
-    );
+    $(`order-${id}`);
 
-  if(el.style.display === "block"){
+  if(!el) return;
 
-    el.style.display = "none";
-
-  }else{
-
-    el.style.display = "block";
-
-  }
+  el.style.display =
+    el.style.display === "block"
+    ?
+    "none"
+    :
+    "block";
 
 }
+
+
 window.deleteOrder = async function(id){
 
-  const confirmDelete =
+  const ok =
     confirm("Delete order?");
 
-  if(!confirmDelete) return;
+  if(!ok) return;
 
   await deleteDoc(
     doc(db,"orders",id)
@@ -989,8 +1307,9 @@ window.deleteOrder = async function(id){
   loadDashboard();
 
 }
-window.editOrder =
-async function(id){
+
+
+window.editOrder = async function(id){
 
   const orderRef =
     doc(db,"orders",id);
@@ -1006,7 +1325,7 @@ async function(id){
   order.items.forEach(item=>{
 
     text +=
-`${item.name},${item.qty},${item.price}\n`;
+      `${item.name},${item.qty},${item.price}\n`;
 
   });
 
@@ -1035,8 +1354,7 @@ Basque,1,14.9
     .filter(line=>line.trim());
 
   let items = [];
-
-  let total = 0;
+  let subtotal = 0;
 
   lines.forEach(line=>{
 
@@ -1052,21 +1370,40 @@ Basque,1,14.9
     const price =
       Number(parts[2]);
 
-   items.push({
+    if(
+      name
+      &&
+      !isNaN(qty)
+      &&
+      !isNaN(price)
+    ){
 
-  name,
+      items.push({
+        name,
+        qty,
+        price
+      });
 
-  qty,
+      subtotal +=
+        qty * price;
 
-  price,
-
-  milk:"Fresh Milk"
-
-});
-
-    total += qty * price;
+    }
 
   });
+
+  const discount =
+    Number(
+      prompt(
+        "Discount RM",
+        order.discount || 0
+      )
+    ) || 0;
+
+  const total =
+    Math.max(
+      0,
+      subtotal - discount
+    );
 
   const payment =
     prompt(
@@ -1076,363 +1413,286 @@ Basque,1,14.9
 
   if(payment === null) return;
 
+  const note =
+    prompt(
+      "Order Note",
+      order.note || ""
+    );
+
+  if(note === null) return;
+
   await updateDoc(
-
     orderRef,
-
     {
-
       items,
+      subtotal,
+      discount,
       total,
-      payment
-
+      payment,
+      note
     }
-
   );
 
   loadDashboard();
 
 }
 
-document.getElementById(
-  "addModifierBtn"
-)
-.addEventListener("click",()=>{
 
-  const milk =
-    document.getElementById(
-      "milkSelect"
-    ).value;
-
-const sweet =
-
-  document.getElementById(
-    "sweetSelect"
-  ).value;
-
-const addonPrice =
-
-  Number(
-
-    document.getElementById(
-      "addonSelect"
-    ).value
-
-  );
-
-const addonName =
-
-  document.getElementById(
-    "addonSelect"
-  )
-
-  .selectedOptions[0]
-
-  .text;
-
-const note =
-
-  document.getElementById(
-    "noteInput"
-  ).value;
-
-  const ice =
-    document.getElementById(
-      "iceSelect"
-    ).value;
-
-  const existing =
-    cart.find(i=>
-
-      i.name === selectedProduct.name
-
-      &&
-
-      i.milk === milk
-
-      &&
-
-      i.ice === ice
-
-    );
-
-  if(existing){
-
-    existing.qty += 1;
-
-  }else{
-
-    cart.push({
-
-  name:selectedProduct.name,
-
-  price:
-
-    selectedProduct.price
-
-    +
-
-    addonPrice,
-
-  qty:1,
-
-  milk,
-
-  ice,
-
-  sweet,
-
-  addon:addonName,
-
-  note
-
-});
-
-  }
-
-  renderCart();
-
-  document.getElementById(
-    "modifierModal"
-  ).style.display = "none";
-
-});
+// ---------- RECEIPT ----------
 
 function showReceipt(order){
 
-  const now = new Date();
+  const now =
+    new Date();
 
   let html = `
+
     <div class="receipt">
 
       <div class="receipt-logo">
         <img src="./logo.png" alt="logo">
       </div>
 
-      <h2>Matchalogy</h2>
+      <h2>
+        Matchalogy
+      </h2>
 
-<p class="receipt-sub">
-  Order #${order.orderNo}
-</p>
+      <p class="receipt-sub">
+        Order #${order.orderNo || ""}
+      </p>
 
       <p class="receipt-time">
         ${now.toLocaleString()}
       </p>
 
       <hr>
+
   `;
 
   order.items.forEach(item=>{
 
+    const modifierHTML =
+      getModifierHTML(item);
+
     html += `
+
       <div class="receipt-item">
 
         <div>
-          <strong>${item.name}</strong>
 
-          <small>
-          ${item.milk ? item.milk + " · " : ""}
-${item.ice ? item.ice + " · " : ""}
-${item.sweet ? item.sweet : ""}
-${item.addon && item.addon !== "None" ? "<br>" + item.addon : ""}
-${item.note ? "<br>Note: " + item.note : ""}
-          </small>
+          <strong>
+            ${escapeHTML(item.name)}
+          </strong>
+
+          ${modifierHTML ? `
+            <small>
+              ${modifierHTML}
+            </small>
+          ` : ""}
+
         </div>
 
         <div>
-          x${item.qty}<br>
-          RM ${(item.price * item.qty).toFixed(2)}
+          x${item.qty}
+          <br>
+          RM ${money((Number(item.price) || 0) * (Number(item.qty) || 0))}
         </div>
 
       </div>
+
     `;
 
   });
 
   html += `
+
       <hr>
 
       ${order.discount > 0 ? `
-  <div class="receipt-total">
-    <span>Discount</span>
-    <strong>- RM ${order.discount.toFixed(2)}</strong>
-  </div>
-` : ""}
 
-<div class="receipt-total">
-  <span>Total</span>
-  <strong>RM ${order.total.toFixed(2)}</strong>
-</div>
+        <div class="receipt-total">
+          <span>Discount</span>
+          <strong>- RM ${money(order.discount)}</strong>
+        </div>
 
-      <p>Payment: ${order.payment}</p>
+      ` : ""}
 
-${order.note ? `
-  <p>
-    Note: ${order.note}
-  </p>
-` : ""}
+      <div class="receipt-total">
+        <span>Total</span>
+        <strong>RM ${money(order.total)}</strong>
+      </div>
+
+      <p class="receipt-payment">
+        Payment: ${escapeHTML(order.payment || "")}
+      </p>
+
+      ${order.note ? `
+
+        <p>
+          Note: ${escapeHTML(order.note)}
+        </p>
+
+      ` : ""}
 
       <p class="receipt-thanks">
         Thank you for visiting 💚
       </p>
 
     </div>
+
   `;
 
-  document.getElementById("receiptContent").innerHTML = html;
-  document.getElementById("receiptModal").style.display = "flex";
+  setHTML("receiptContent",html);
+
+  show("receiptModal");
+
 }
 
-document.getElementById("closeReceiptBtn")
-.addEventListener("click",()=>{
 
-  document.getElementById("receiptModal").style.display = "none";
+if($("closeReceiptBtn")){
 
-});
+  $("closeReceiptBtn")
+  .addEventListener("click",()=>{
 
-document.getElementById("printReceiptBtn")
-.addEventListener("click",()=>{
-
-  window.print();
-
-});
-
-document.getElementById("closeDayBtn")
-.addEventListener("click",async()=>{
-
-  const today =
-    new Date().toDateString();
-
-  const snapshot =
-    await getDocs(collection(db,"orders"));
-
-  let revenue = 0;
-  let discount = 0;
-  let orders = 0;
-
-  let cash = 0;
-  let tng = 0;
-  let shopee = 0;
-
-  snapshot.forEach((docSnap)=>{
-
-    const order =
-      docSnap.data();
-
-    const orderDate =
-      new Date(
-        order.time.seconds * 1000
-      ).toDateString();
-
-    if(orderDate === today){
-
-      revenue += order.total || 0;
-
-      discount += order.discount || 0;
-
-      orders += 1;
-
-      if(order.payment === "Cash"){
-        cash += order.total || 0;
-      }
-
-      if(order.payment === "TNG"){
-        tng += order.total || 0;
-      }
-
-      if(order.payment === "Shopee"){
-        shopee += order.total || 0;
-      }
-
-    }
+    hide("receiptModal");
 
   });
 
-  await addDoc(
-    collection(db,"closings"),
-    {
-      date: today,
-      revenue,
-      discount,
-      orders,
-      cash,
-      tng,
-      shopee,
-      time:new Date()
-    }
-  );
+}
 
-  alert("Day Closed ✅");
 
-  loadClosingHistory();
+if($("printReceiptBtn")){
 
-});
+  $("printReceiptBtn")
+  .addEventListener("click",()=>{
 
-let allClosings = [];
+    window.print();
 
-async function loadClosingHistory(){
-
-  const q = query(
-  collection(db,"closings"),
-  orderBy("time","desc")
-);
-
-const snapshot =
-  await getDocs(q);
-
-  let html = "";
-  let monthData = {};
-  allClosings = [];
-
-  snapshot.forEach((docSnap)=>{
-
-    const c =
-      docSnap.data();
-    allClosings.push(c);
-
-const date =
-  new Date(c.time.seconds * 1000);
-
-const monthKey =
-  `${date.toLocaleString("default",{
-    month:"long"
-  })} ${date.getFullYear()}`;
-
-if(!monthData[monthKey]){
-
-  monthData[monthKey] = 0;
+  });
 
 }
 
-monthData[monthKey] +=
-  c.revenue || 0;
+
+// ---------- CLOSING ----------
+
+if($("closeDayBtn")){
+
+  $("closeDayBtn")
+  .addEventListener("click",async()=>{
+
+    const ok =
+      confirm("Close today?");
+
+    if(!ok) return;
+
+    const today =
+      new Date().toDateString();
+
+    const snapshot =
+      await getDocs(collection(db,"orders"));
+
+    let revenue = 0;
+    let discount = 0;
+    let orders = 0;
+
+    let cash = 0;
+    let tng = 0;
+    let shopee = 0;
+
+    snapshot.forEach((docSnap)=>{
+
+      const order =
+        docSnap.data();
+
+      const orderDate =
+        toDate(order.time)
+        .toDateString();
+
+      if(orderDate === today){
+
+        const total =
+          Number(order.total) || 0;
+
+        revenue += total;
+
+        discount +=
+          Number(order.discount) || 0;
+
+        orders += 1;
+
+        if(order.payment === "Cash"){
+          cash += total;
+        }
+
+        if(order.payment === "TNG"){
+          tng += total;
+        }
+
+        if(order.payment === "Shopee"){
+          shopee += total;
+        }
+
+      }
+
+    });
+
+    await addDoc(
+      collection(db,"closings"),
+      {
+        date: today,
+        revenue,
+        discount,
+        orders,
+        cash,
+        tng,
+        shopee,
+        time:new Date()
+      }
+    );
+
+    alert("Day Closed ✅");
+
+    loadClosingHistory();
+
+  });
+
+}
+
+
+function renderClosingCards(list){
+
+  let html = "";
+
+  list.forEach(c=>{
 
     html += `
 
       <div class="closing-card">
 
-        <strong>${c.date}</strong>
+        <strong>
+          ${escapeHTML(c.date)}
+        </strong>
 
-        Revenue: RM ${c.revenue.toFixed(2)}
+        Revenue: RM ${money(c.revenue)}
         <br>
 
-        Discount: RM ${c.discount.toFixed(2)}
+        Discount: RM ${money(c.discount)}
         <br>
 
         Orders: ${c.orders}
         <br>
 
-        Cash: RM ${c.cash.toFixed(2)}
+        Cash: RM ${money(c.cash)}
         <br>
 
-        TNG: RM ${c.tng.toFixed(2)}
+        TNG: RM ${money(c.tng)}
         <br>
 
-        Shopee: RM ${c.shopee.toFixed(2)}
+        Shopee: RM ${money(c.shopee)}
 
-<button onclick="deleteClosing('${docSnap.id}')">
-  Delete
-</button>
+        <button onclick="deleteClosing('${c.id}')">
+          Delete
+        </button>
 
       </div>
 
@@ -1440,110 +1700,111 @@ monthData[monthKey] +=
 
   });
 
-  document.getElementById("closingHistory")
-    .innerHTML = html;
-
-let monthHTML = "";
-
-Object.entries(monthData)
-.reverse()
-.forEach(([month,total])=>{
-
-  monthHTML += `
-
-    <div class="closing-card">
-
-      <strong>${month}</strong>
-
-      Revenue:
-      RM ${total.toFixed(2)}
-
-    </div>
-
-  `;
-
-});
-
-document.getElementById(
-  "monthlyRevenue"
-).innerHTML = monthHTML;
+  return html;
 
 }
 
-document.getElementById(
-  "openMonthlyBtn"
-)
-.addEventListener("click",()=>{
 
-  document.getElementById(
-    "monthlyModal"
-  ).style.display = "flex";
+async function loadClosingHistory(){
 
-});
+  const snapshot =
+    await getDocs(collection(db,"closings"));
 
-document.getElementById(
-  "closeMonthlyBtn"
-)
-.addEventListener("click",()=>{
+  let closings = [];
 
-  document.getElementById(
-    "monthlyModal"
-  ).style.display = "none";
+  snapshot.forEach((docSnap)=>{
 
-});
-
-document.getElementById("closingSearch")
-.addEventListener("input",()=>{
-
-  const keyword =
-    document.getElementById("closingSearch")
-    .value
-    .toLowerCase();
-
-  let html = "";
-
-  allClosings.forEach(c=>{
-
-    const dateText =
-      c.date.toLowerCase();
-
-    if(dateText.includes(keyword)){
-
-      html += `
-
-        <div class="closing-card">
-
-          <strong>${c.date}</strong>
-
-          Revenue: RM ${c.revenue.toFixed(2)}
-          <br>
-
-          Discount: RM ${c.discount.toFixed(2)}
-          <br>
-
-          Orders: ${c.orders}
-          <br>
-
-          Cash: RM ${c.cash.toFixed(2)}
-          <br>
-
-          TNG: RM ${c.tng.toFixed(2)}
-          <br>
-
-          Shopee: RM ${c.shopee.toFixed(2)}
-
-        </div>
-
-      `;
-
-    }
+    closings.push({
+      id:docSnap.id,
+      ...docSnap.data()
+    });
 
   });
 
-  document.getElementById("closingHistory")
-    .innerHTML = html;
+  closings.sort((a,b)=>{
 
-});
+    return toDate(b.time) - toDate(a.time);
+
+  });
+
+  allClosings = closings;
+
+  let monthData = {};
+
+  closings.forEach(c=>{
+
+    const date =
+      toDate(c.time);
+
+    const monthKey =
+      `${date.toLocaleString("default",{
+        month:"long"
+      })} ${date.getFullYear()}`;
+
+    if(!monthData[monthKey]){
+      monthData[monthKey] = 0;
+    }
+
+    monthData[monthKey] +=
+      Number(c.revenue) || 0;
+
+  });
+
+  let monthHTML = "";
+
+  Object.entries(monthData)
+  .forEach(([month,total])=>{
+
+    monthHTML += `
+
+      <div class="closing-card">
+
+        <strong>${escapeHTML(month)}</strong>
+
+        Revenue:
+        RM ${money(total)}
+
+      </div>
+
+    `;
+
+  });
+
+  setHTML("monthlyRevenue",monthHTML);
+
+  setHTML(
+    "closingHistory",
+    renderClosingCards(closings)
+  );
+
+}
+
+
+if($("closingSearch")){
+
+  $("closingSearch")
+  .addEventListener("input",()=>{
+
+    const keyword =
+      getValue("closingSearch")
+      .toLowerCase();
+
+    const filtered =
+      allClosings.filter(c=>
+        String(c.date)
+        .toLowerCase()
+        .includes(keyword)
+      );
+
+    setHTML(
+      "closingHistory",
+      renderClosingCards(filtered)
+    );
+
+  });
+
+}
+
 
 window.deleteClosing = async function(id){
 
@@ -1560,35 +1821,33 @@ window.deleteClosing = async function(id){
 
 }
 
-document.getElementById("openProductBtn")
-.addEventListener("click",()=>{
 
-  editingId = null;
+if($("openMonthlyBtn")){
 
-  document.getElementById("productModalTitle")
-    .innerText = "Add Product";
+  $("openMonthlyBtn")
+  .addEventListener("click",()=>{
 
-  document.getElementById("name").value = "";
-  document.getElementById("price").value = "";
-  document.getElementById("category").value = "";
-  document.getElementById("image").value = "";
+    show("monthlyModal");
 
-  document.getElementById("modifierEnabled").value = "no";
-  document.getElementById("defaultMilk").value = "";
-  document.getElementById("defaultIce").value = "";
-  document.getElementById("defaultSweet").value = "";
-  document.getElementById("defaultAddon").value = "0";
-  document.getElementById("defaultNote").value = "";
+  });
 
-  document.getElementById("productModal")
-    .style.display = "flex";
+}
 
-});
 
-document.getElementById("closeProductBtn")
-.addEventListener("click",()=>{
+if($("closeMonthlyBtn")){
 
-  document.getElementById("productModal")
-    .style.display = "none";
+  $("closeMonthlyBtn")
+  .addEventListener("click",()=>{
 
-});
+    hide("monthlyModal");
+
+  });
+
+}
+
+
+// ---------- START ----------
+
+loadProducts();
+loadDashboard();
+loadClosingHistory();
