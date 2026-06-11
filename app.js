@@ -43,17 +43,28 @@ let selectedProduct = null;
 // LOAD PRODUCTS
 async function loadProducts(){
 
-  const q = query(
-    collection(db,"products"),
-    orderBy("sort")
-  );
-
   const snapshot =
-    await getDocs(q);
+  await getDocs(collection(db,"products"));
 
+let productList = [];
+
+snapshot.forEach((docSnap)=>{
+
+  productList.push({
+    id:docSnap.id,
+    ...docSnap.data()
+  });
+
+});
+
+productList.sort((a,b)=>{
+
+  return (a.sort || 9999999999999) - (b.sort || 9999999999999);
+
+});
   let html = "";
 
-  snapshot.forEach((docSnap)=>{
+  productList.forEach((p)=>{
 
     const p = docSnap.data();
 
@@ -70,7 +81,7 @@ async function loadProducts(){
 
       <div
   class="card"
-  data-id="${docSnap.id}"
+  data-id="${p.id}"
   data-modifier="${p.modifierEnabled ? 'yes' : 'no'}"
   data-default-milk="${p.defaultMilk || ''}"
   data-default-ice="${p.defaultIce || ''}"
@@ -101,7 +112,7 @@ async function loadProducts(){
 
             <button
   class="small-btn edit"
-  data-id="${docSnap.id}"
+  data-id="${p.id}"
   data-name="${p.name}"
   data-price="${p.price}"
   data-category="${p.category || ''}"
@@ -117,7 +128,7 @@ async function loadProducts(){
 </button>
             <button
               class="small-btn delete"
-              data-delete="${docSnap.id}"
+              data-delete="${p.id}"
             >
               Delete
             </button>
