@@ -339,3 +339,20 @@ button{
   border-radius:999px;
   font-size:14px;
 }
+#productModal .modifier-box{
+  max-height:85vh;
+  overflow-y:auto;
+  padding-bottom:30px;
+}
+
+#productModal #saveBtn{
+  position:sticky;
+  bottom:60px;
+  z-index:10;
+}
+
+#productModal #closeProductBtn{
+  position:sticky;
+  bottom:0;
+  z-index:10;
+}
