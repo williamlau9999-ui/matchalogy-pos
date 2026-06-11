@@ -308,20 +308,20 @@ function bindProductClicks(){
 
         setText("modifierTitle",name);
 
-        setValue(
-          "milkSelect",
-          card.dataset.defaultMilk || "Fresh Milk"
-        );
+setValue(
+  "milkSelect",
+  card.dataset.defaultMilk || ""
+);
 
-        setValue(
-          "iceSelect",
-          card.dataset.defaultIce || "Normal Ice"
-        );
+setValue(
+  "iceSelect",
+  card.dataset.defaultIce || ""
+);
 
-        setValue(
-          "sweetSelect",
-          card.dataset.defaultSweet || "100%"
-        );
+setValue(
+  "sweetSelect",
+  card.dataset.defaultSweet || ""
+);
 
         setValue(
           "addonSelect",
