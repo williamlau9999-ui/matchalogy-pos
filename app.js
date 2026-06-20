@@ -38,6 +38,8 @@ let currentCategory = "all";
 let selectedProduct = null;
 let sortableInstance = null;
 let allClosings = [];
+let fullMonthSales = {};
+let fullAllTimeSales = {};
 
 
 // ---------- HELPERS ----------
@@ -1073,6 +1075,36 @@ function renderTopSelling(data){
 
 }
 
+function renderFullSales(data){
+
+  const sorted =
+    Object.entries(data)
+    .sort((a,b)=>b[1]-a[1]);
+
+  if(sorted.length === 0){
+    return "<div>No sales data</div>";
+  }
+
+  return sorted
+    .map((item,index)=>`
+
+      <div class="full-sales-row">
+
+        <span>
+          ${index + 1}. ${escapeHTML(item[0])}
+        </span>
+
+        <strong>
+          x${item[1]}
+        </strong>
+
+      </div>
+
+    `)
+    .join("");
+
+}
+
 
 async function loadDashboard(){
 
@@ -1269,9 +1301,12 @@ async function loadDashboard(){
   );
 
   setHTML(
-    "topSellingAllTime",
-    renderTopSelling(topAllTime)
-  );
+  "topSellingAllTime",
+  renderTopSelling(topAllTime)
+);
+
+fullMonthSales = topMonth;
+fullAllTimeSales = topAllTime;
 
 }
 
@@ -1847,6 +1882,82 @@ if($("closeMonthlyBtn")){
 
 
 // ---------- START ----------
+
+if($("openSalesBtn")){
+
+  $("openSalesBtn")
+  .addEventListener("click",()=>{
+
+    setHTML(
+      "allSalesList",
+      renderFullSales(fullMonthSales)
+    );
+
+    $("showMonthSalesBtn")
+      .classList.add("active");
+
+    $("showAllSalesBtn")
+      .classList.remove("active");
+
+    show("salesModal");
+
+  });
+
+}
+
+
+if($("showMonthSalesBtn")){
+
+  $("showMonthSalesBtn")
+  .addEventListener("click",()=>{
+
+    setHTML(
+      "allSalesList",
+      renderFullSales(fullMonthSales)
+    );
+
+    $("showMonthSalesBtn")
+      .classList.add("active");
+
+    $("showAllSalesBtn")
+      .classList.remove("active");
+
+  });
+
+}
+
+
+if($("showAllSalesBtn")){
+
+  $("showAllSalesBtn")
+  .addEventListener("click",()=>{
+
+    setHTML(
+      "allSalesList",
+      renderFullSales(fullAllTimeSales)
+    );
+
+    $("showAllSalesBtn")
+      .classList.add("active");
+
+    $("showMonthSalesBtn")
+      .classList.remove("active");
+
+  });
+
+}
+
+
+if($("closeSalesBtn")){
+
+  $("closeSalesBtn")
+  .addEventListener("click",()=>{
+
+    hide("salesModal");
+
+  });
+
+}
 
 loadProducts();
 loadDashboard();

@@ -205,6 +205,9 @@
   <div id="topSellingAllTime">-</div>
 </div>
 
+<button id="openSalesBtn">
+  View All Sales
+</button>
 </div>
 
 <div
@@ -338,6 +341,43 @@
     <button id="printReceiptBtn">Print Receipt</button>
     <button id="closeReceiptBtn">Close</button>
   </div>
+</div>
+
+<div
+  id="salesModal"
+  class="modifier-modal"
+>
+
+  <div class="modifier-box sales-modal-box">
+
+    <h2>Sales Ranking</h2>
+
+    <div class="sales-tabs">
+
+      <button
+        id="showMonthSalesBtn"
+        class="sales-tab active"
+      >
+        This Month
+      </button>
+
+      <button
+        id="showAllSalesBtn"
+        class="sales-tab"
+      >
+        All Time
+      </button>
+
+    </div>
+
+    <div id="allSalesList"></div>
+
+    <button id="closeSalesBtn">
+      Close
+    </button>
+
+  </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
