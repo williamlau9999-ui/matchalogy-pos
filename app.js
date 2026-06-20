@@ -40,6 +40,7 @@ let sortableInstance = null;
 let allClosings = [];
 let fullMonthSales = {};
 let fullAllTimeSales = {};
+let currentSalesView = "month";
 
 
 // ---------- HELPERS ----------
@@ -1901,6 +1902,45 @@ if($("openSalesBtn")){
 
     show("salesModal");
 
+if($("salesSearch")){
+
+  $("salesSearch")
+  .addEventListener("input",()=>{
+
+    const keyword =
+      getValue("salesSearch")
+      .trim()
+      .toLowerCase();
+
+    const source =
+      currentSalesView === "all"
+      ? fullAllTimeSales
+      : fullMonthSales;
+
+    const filtered = {};
+
+    Object.entries(source)
+    .forEach(([name,qty])=>{
+
+      if(
+        name
+        .toLowerCase()
+        .includes(keyword)
+      ){
+        filtered[name] = qty;
+      }
+
+    });
+
+    setHTML(
+      "allSalesList",
+      renderFullSales(filtered)
+    );
+
+  });
+
+}
+
   });
 
 }
@@ -1910,6 +1950,8 @@ if($("showMonthSalesBtn")){
 
   $("showMonthSalesBtn")
   .addEventListener("click",()=>{
+
+currentSalesView = "month";
 
     setHTML(
       "allSalesList",
@@ -1931,6 +1973,8 @@ if($("showAllSalesBtn")){
 
   $("showAllSalesBtn")
   .addEventListener("click",()=>{
+
+currentSalesView = "all";
 
     setHTML(
       "allSalesList",

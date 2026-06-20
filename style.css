@@ -389,3 +389,35 @@ button{
 .full-sales-row strong{
   white-space:nowrap;
 }
+
+.sales-title-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+
+.sales-title-row h2{
+  margin:0;
+  white-space:nowrap;
+}
+
+#salesSearch{
+  width:280px;
+  max-width:48%;
+  margin:0;
+}
+
+@media(max-width:600px){
+
+  .sales-title-row{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  #salesSearch{
+    width:100%;
+    max-width:none;
+  }
+
+}
