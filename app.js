@@ -775,12 +775,12 @@ if($("printReceiptBtn")){ $("printReceiptBtn").addEventListener("click",()=>{ wi
 // ---------- CLOSING & MONTHLY REVENUE & REPORT ----------
 
 if($("closeDayBtn")){
-  $("closeDayBtn").addEventListener("click",async()=>{
+  $("closeDayBtn").addEventListener("click", async()=>{
     const ok = confirm("确定要对今天进行结账关闭吗？");
     if(!ok) return;
 
     const today = new Date().toDateString();
-    const snapshot = await getDocs(collection(db,"orders"));
+    const snapshot = await getDocs(collection(db, "orders"));
 
     let revenue = 0; let discount = 0; let orders = 0;
     let cash = 0; let tng = 0; let shopee = 0;
@@ -791,18 +791,26 @@ if($("closeDayBtn")){
 
       if(orderDate === today){
         const total = Number(order.total) || 0;
-        revenue += total; discount += Number(order.discount) || 0; orders += 1;
+        revenue += total; 
+        discount += Number(order.discount) || 0; 
+        orders += 1;
         if(order.payment === "Cash") cash += total;
         if(order.payment === "TNG") tng += total;
         if(order.payment === "Shopee") shopee += total;
       }
     });
 
-    await addDoc(collection(db,"closings"), { date: today, revenue, discount, orders, cash, tng, shopee, time: new Date() });
+    await addDoc(collection(db, "closings"), { 
+      date: today, revenue, discount, orders, cash, tng, shopee, time: new Date() 
+    });
     alert("Day Closed ✅");
-    loadClosingHistory(); loadDashboard();
+    loadClosingHistory(); 
+    loadDashboard();
   });
 }
+
+// 定义全局变量，用于搜索功能
+window.allClosings = []; 
 
 function renderClosingCards(list){
   let html = "";
@@ -824,17 +832,17 @@ function renderClosingCards(list){
 }
 
 async function loadClosingHistory(){
-  const snapshot = await getDocs(collection(db,"closings"));
+  const snapshot = await getDocs(collection(db, "closings"));
   let closings = [];
-  snapshot.forEach((docSnap)=>{ closings.push({ id: docSnap.id, ...docSnap.data() }); });
-  closings.sort((a,b)=> toDate(b.time) - toDate(a.time));
+  snapshot.forEach((docSnap)=>{ 
+    closings.push({ id: docSnap.id, ...docSnap.data() }); 
+  });
+  closings.sort((a, b)=> toDate(b.time) - toDate(a.time));
   allClosings = closings;
 
-  // 1. 计算当月总额显示在顶部
   const now = new Date();
   let currentMonthTotal = 0;
   
-  // 2. 统计每个月的数据 (还原你原本的逻辑)
   let monthData = {};
   closings.forEach(c=>{
     const date = toDate(c.time);
@@ -842,42 +850,52 @@ async function loadClosingHistory(){
       currentMonthTotal += Number(c.revenue) || 0;
     }
     
-    const monthKey = `${date.toLocaleString("default",{ month:"long" })} ${date.getFullYear()}`;
+    const monthLabel = `${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
     const inputFormat = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     
-    if(!monthData[monthKey]){ monthData[monthKey] = { total: 0, inputVal: inputFormat }; }
-    monthData[monthKey].total += Number(c.revenue) || 0;
+    if(!monthData[monthLabel]){ 
+      monthData[monthLabel] = { total: 0, inputVal: inputFormat }; 
+    }
+    monthData[monthLabel].total += Number(c.revenue) || 0;
   });
 
   setText("monthRevenue", money(currentMonthTotal));
   setHTML("closingHistory", renderClosingCards(closings));
 
-  // 3. 把每个月（5月、6月）渲染成可点击的卡片
+  // 渲染月份列表卡片
   let monthHTML = "";
   Object.entries(monthData).forEach(([monthLabel, data])=>{
     monthHTML += `
-      <div class="closing-card" style="cursor:pointer;" onclick="openMonthlyReport('${data.inputVal}', '${monthLabel}')">
+      <div class="closing-card" style="cursor:pointer; background:#f0f4f8; border-left: 4px solid #1976d2; padding: 10px;" onclick="openMonthlyReport('${data.inputVal}', '${monthLabel}')">
         <strong>${escapeHTML(monthLabel)}</strong><br>
         Revenue: RM ${money(data.total)}<br>
-        <small style="color:blue;">👉 Click for details</small>
+        <small style="color:#1976d2; font-weight:bold;">👉 Click to view & download report</small>
       </div>
     `;
   });
   setHTML("monthlyRevenueList", monthHTML);
 }
 
+// 恢复搜索栏逻辑
+if($("closingSearch")){
+  $("closingSearch").addEventListener("input", (e)=>{
+    const val = e.target.value.toLowerCase();
+    const filtered = allClosings.filter(c => c.date.toLowerCase().includes(val));
+    setHTML("closingHistory", renderClosingCards(filtered));
+  });
+}
+
 window.deleteClosing = async function(id){
   const ok = confirm("Delete this closing record?");
   if(!ok) return;
-  await deleteDoc(doc(db,"closings",id));
+  await deleteDoc(doc(db, "closings", id));
   loadClosingHistory();
 };
 
 if($("openMonthlyBtn")){ $("openMonthlyBtn").addEventListener("click", () => show("monthlyModal")); }
 if($("closeMonthlyBtn")){ $("closeMonthlyBtn").addEventListener("click", () => hide("monthlyModal")); }
 
-
-// --- 你原本的报表生成逻辑 ---
+// --- 点击月份后打开报表弹窗的逻辑 ---
 window.openMonthlyReport = async function(monthValue, monthLabel) {
   $("reportMonth").value = monthValue;
   setText("reportMonthTitle", monthLabel + " Report");
@@ -885,12 +903,13 @@ window.openMonthlyReport = async function(monthValue, monthLabel) {
   show("monthlyReportModal");
 };
 
+// --- 生成单个月份的报表内容 ---
 async function generateMonthlyReport(){
   const monthValue = $("reportMonth").value;
   if(!monthValue) return;
 
   const [year, month] = monthValue.split("-").map(Number);
-  const snapshot = await getDocs(collection(db,"orders"));
+  const snapshot = await getDocs(collection(db, "orders"));
 
   let revenue = 0; let orders = 0; let discount = 0;
   let top = {};
@@ -902,26 +921,34 @@ async function generateMonthlyReport(){
       revenue += Number(order.total) || 0;
       discount += Number(order.discount) || 0;
       orders++;
-      order.items.forEach(item=>{ top[item.name] = (top[item.name] || 0) + (Number(item.qty) || 0); });
+      order.items.forEach(item=>{ 
+        top[item.name] = (top[item.name] || 0) + (Number(item.qty) || 0); 
+      });
     }
   });
 
   const top3 = Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,3);
 
-  // 完全使用你原本的样式结构
+  // 保证排版干净、整洁
   $("monthlyReportContent").innerHTML = `
-    <h3>Revenue</h3><p>RM ${money(revenue)}</p>
-    <h3>Orders</h3><p>${orders}</p>
-    <h3>Discount</h3><p>RM ${money(discount)}</p>
+    <h3>Revenue</h3>
+    <p>RM ${money(revenue)}</p>
+    <h3>Orders</h3>
+    <p>${orders}</p>
+    <h3>Discount</h3>
+    <p>RM ${money(discount)}</p>
     <hr>
     <h3>Top Selling</h3>
-    ${top3.map((item,index)=>`<div>${index+1}. ${item[0]} x${item[1]}</div>`).join("")}
+    ${top3.map((item,index)=>`<div>${index+1}. ${item[0]} x${item[1]}</div>`).join("") || '<div>-</div>'}
   `;
 }
 
-if($("closeReportBtn")){ $("closeReportBtn").addEventListener("click", () => hide("monthlyReportModal")); }
+// 报表弹窗的退出按钮逻辑
+if($("closeReportBtn")){ 
+  $("closeReportBtn").addEventListener("click", () => hide("monthlyReportModal")); 
+}
 
-// --- 下载 PDF 功能 ---
+// --- 下载 PDF / 打印功能 ---
 if($("downloadReportBtn")){
   $("downloadReportBtn").addEventListener("click", () => {
     const reportContent = $("monthlyReportContent").innerHTML;
@@ -932,12 +959,22 @@ if($("downloadReportBtn")){
       <html>
       <head>
         <title>${monthTitle}</title>
-        <style>body { font-family: sans-serif; padding: 20px; }</style>
+        <style>
+          body { font-family: sans-serif; padding: 20px; color: #333; }
+          hr { border: 0; border-top: 1px solid #ccc; }
+          h3 { margin-bottom: 5px; color: #555; }
+          p, div { font-size: 16px; margin-bottom: 15px; }
+        </style>
       </head>
       <body>
         <h2>${monthTitle}</h2>
         ${reportContent}
-        <script>window.onload = function() { window.print(); setTimeout(() => { window.close(); }, 500); };<\/script>
+        <script>
+          window.onload = function() { 
+            window.print(); 
+            setTimeout(() => { window.close(); }, 500); 
+          };
+        <\/script>
       </body>
       </html>
     `);

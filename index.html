@@ -2,534 +2,246 @@
 <html lang="zh">
 
 <head>
-
   <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Matchalogy POS</title>
-
-<link rel="manifest" href="manifest.json">
-
-<link rel="icon" href="./logo.png">
-<link rel="apple-touch-icon" href="./logo.png">
-
-  <link
-    rel="stylesheet"
-    href="style.css"
-  />
-
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="./logo.png">
+  <link rel="apple-touch-icon" href="./logo.png">
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
 <div class="left">
-
-  <h1>🍵 Matchalogy POS</h1>
-
+  <h1>嵯 Matchalogy POS</h1>
   <div class="tabs">
-
-    <button
-      class="tab active"
-      data-category="all"
-    >
-      All
-    </button>
-
-    <button
-      class="tab"
-      data-category="matcha"
-    >
-      Matcha
-    </button>
-
-    <button
-      class="tab"
-      data-category="espresso"
-    >
-      Espresso
-    </button>
-
-    <button
-      class="tab"
-      data-category="basque"
-    >
-      Basque
-    </button>
-
-    <button
-      class="tab"
-      data-category="mousse"
-    >
-      Mousse
-    </button>
-
-    <button
-      class="tab"
-      data-category="other"
-    >
-      Other
-    </button>
-
+    <button class="tab active" data-category="all">All</button>
+    <button class="tab" data-category="matcha">Matcha</button>
+    <button class="tab" data-category="espresso">Espresso</button>
+    <button class="tab" data-category="basque">Basque</button>
+    <button class="tab" data-category="mousse">Mousse</button>
+    <button class="tab" data-category="other">Other</button>
   </div>
-
-  <div
-    class="products"
-    id="products"
-  ></div>
-
+  <div class="products" id="products"></div>
 </div>
 
 <div class="right">
-
- <div class="cart-title-row">
-
-  <h2>🧾 Cart</h2>
-
-  <div class="cart-header-actions">
-
-    <button
-      id="storeStatusBtn"
-      class="store-status-btn"
-    >
-      Loading...
-    </button>
-
-    <button id="logoutBtn">
-      Log Out
-    </button>
-
+  <div class="cart-title-row">
+    <h2>ｧｾ Cart</h2>
+    <div class="cart-header-actions">
+      <button id="storeStatusBtn" class="store-status-btn">Loading...</button>
+      <button id="logoutBtn">Log Out</button>
+    </div>
   </div>
-
-</div>
 
   <ul id="cart"></ul>
 
-<input
-  id="discount"
-  placeholder="Discount RM"
-/>
+  <input id="discount" placeholder="Discount RM" />
+  <textarea id="orderNote" placeholder="Order Note"></textarea>
 
-<textarea
-  id="orderNote"
-  placeholder="Order Note"
-/></textarea>
+  <div class="total">RM <span id="total">0</span></div>
 
-  <div class="total">
-    RM <span id="total">0</span>
-  </div>
-
-  <button id="clearCartBtn">
-    Clear Cart
-  </button>
-
-  <button id="cashBtn">
-    Cash
-  </button>
-
-  <button id="tngBtn">
-    TNG
-  </button>
-
-<button id="ShopeeBtn">
-    Shopee
-  </button>
+  <button id="clearCartBtn">Clear Cart</button>
+  <button id="cashBtn">Cash</button>
+  <button id="tngBtn">TNG</button>
+  <button id="ShopeeBtn">Shopee</button>
 
   <hr>
 
   <div class="dashboard">
+    <div class="pending-orders">
+      <div class="pending-title">
+        <h2>QR Pending Orders</h2>
+        <span id="pendingOrderCount">0</span>
+      </div>
+      <div id="pendingOrdersList"></div>
+    </div>
 
-<div class="pending-orders">
+    <div class="recent-orders">
+      <h2>Recent Orders</h2>
+      <div id="ordersList"></div>
+    </div>
 
-  <div class="pending-title">
+    <div class="dashboard-title">
+      <h2>投 Dashboard</h2>
+      <button id="openProductBtn">+ Product</button>
+    </div>
 
-    <h2>QR Pending Orders</h2>
+    <hr>
 
-    <span id="pendingOrderCount">
-      0
-    </span>
-
-  </div>
-
-  <div id="pendingOrdersList"></div>
-
-</div>
-
-<div class="recent-orders">
-
-  <h2>Recent Orders</h2>
-
-  <div id="ordersList"></div>
-
-</div>
-
-   <div class="dashboard-title">
-
-  <h2>📊 Dashboard</h2>
-
-  <button id="openProductBtn">
-    + Product
-  </button>
-
-</div>
-
-<hr>
-
-<div class="daily-closing">
-
-  <h2>📅 Daily Closing</h2>
-
-  <button id="closeDayBtn">
-    Close Today
-  </button>
-
- <button id="openMonthlyBtn">
-  Monthly Revenue
-</button>
-
-</div>
+    <div class="daily-closing">
+      <h2>套 Daily Closing</h2>
+      <button id="closeDayBtn">Close Today</button>
+      <button id="openMonthlyBtn">Monthly Revenue</button>
+    </div>
 
     <div class="dash-card">
-
       <div>Today Revenue</div>
-
-      <strong>
-        RM <span id="todayRevenue">0</span>
-      </strong>
-
+      <strong>RM <span id="todayRevenue">0</span></strong>
     </div>
 
-<div class="dash-card">
-
-  <div>Total Discount</div>
-
-  <strong>
-    RM <span id="todayDiscount">0</span>
-  </strong>
-
-</div>
     <div class="dash-card">
-
-      <div>Today Orders</div>
-
-<div class="dash-card">
-
-  <div>
-    Peak Hour
-  </div>
-
-  <strong id="peakHour">
-    -
-  </strong>
-
-</div>
-
-      <strong id="todayOrders">
-        0
-      </strong>
-
+      <div>Total Discount</div>
+      <strong>RM <span id="todayDiscount">0</span></strong>
     </div>
 
+    <div class="dash-card">
+      <div>Today Orders</div>
+      <strong id="todayOrders">0</strong>
+    </div>
+    
+    <div class="dash-card">
+      <div>Peak Hour</div>
+      <strong id="peakHour">-</strong>
+    </div>
   </div>
 
   <hr>
 
-<div class="dash-card">
-  <div>Top Selling Today</div>
-  <div id="topSellingToday">-</div>
-</div>
-
-<div class="dash-card">
-  <div>Top Selling This Month</div>
-  <div id="topSellingMonth">-</div>
-</div>
-
-<div class="dash-card">
-  <div>All Time Top Selling</div>
-  <div id="topSellingAllTime">-</div>
-</div>
-
-<button id="openSalesBtn">
-  View All Sales
-</button>
-</div>
-
-<div
-  id="modifierModal"
-  class="modifier-modal"
->
-
-  <div class="modifier-box">
-
-    <h2 id="modifierTitle">
-      Product
-    </h2>
-
-    <div class="modifier-group" id="staffMilkGroup">
-
-      <label>Milk</label>
-
-  <select id="milkSelect">
-
-  <option value="">
-    None
-  </option>
-
-  <option>Full Cream Milk</option>
-
-  <option>Oat Milk</option>
-
-  <option>Coconut Milk</option>
-
-</select>
-
-    </div>
-
-    <div class="modifier-group" id="staffIceGroup">
-
-      <label>Ice</label>
-
-     <select id="iceSelect">
-
-  <option value="">
-    None
-  </option>
-
-<option>Hot</option>
-
- <option>Recommend Ice</option>
-
- <option>Less Ice</option>
-
- <option>Half Ice</option>
-
- <option>Slight Ice</option>
-
- <option>No Ice</option>
-
-</select>
-
-    </div>
-
-    <div class="modifier-group" id="staffSweetGroup">
-
-     <label>Sweetness</label>
-
-     <select id="sweetSelect">
-
-  <option value="">
-    None
-  </option>
-
-  <option>Normal Sweet</option>
-
-  <option>Less Sweet</option>
-
-  <option>Half Sweet</option>
-
-  <option>Slightly Sweet</option>
-
-  <option>No Additional Sugar</option>
-
-</select>
-
-    </div>
-
-    <div class="modifier-group" id="staffAddonGroup">
-
-      <label>Add-on</label>
-
-      <select id="addonSelect">
-
-        <option value="0">
-          None
-        </option>
-
-        <option value="3">
-          Extra Shot +RM3
-        </option>
-
-        <option value="6">
-          Extra Double Shot +RM6
-        </option>
-
-      </select>
-
-    </div>
-
-    <div class="modifier-group" id="staffNoteGroup">
-
-      <label>Customer Note</label>
-
-      <textarea
-        id="noteInput"
-        placeholder="Less sweet..."
-      ></textarea>
-
-    </div>
-
-    <button id="addModifierBtn">
-
-      Add To Cart
-
-    </button>
-
+  <div class="dash-card">
+    <div>Top Selling Today</div>
+    <div id="topSellingToday">-</div>
   </div>
 
+  <div class="dash-card">
+    <div>Top Selling This Month</div>
+    <div id="topSellingMonth">-</div>
+  </div>
+
+  <div class="dash-card">
+    <div>All Time Top Selling</div>
+    <div id="topSellingAllTime">-</div>
+  </div>
+
+  <button id="openSalesBtn">View All Sales</button>
+</div>
+
+<div id="modifierModal" class="modifier-modal">
+  <div class="modifier-box">
+    <h2 id="modifierTitle">Product</h2>
+    <div class="modifier-group" id="staffMilkGroup">
+      <label>Milk</label>
+      <select id="milkSelect">
+        <option value="">None</option>
+        <option>Full Cream Milk</option>
+        <option>Oat Milk</option>
+        <option>Coconut Milk</option>
+      </select>
+    </div>
+    <div class="modifier-group" id="staffIceGroup">
+      <label>Ice</label>
+      <select id="iceSelect">
+        <option value="">None</option>
+        <option>Hot</option>
+        <option>Recommend Ice</option>
+        <option>Less Ice</option>
+        <option>Half Ice</option>
+        <option>Slight Ice</option>
+        <option>No Ice</option>
+      </select>
+    </div>
+    <div class="modifier-group" id="staffSweetGroup">
+      <label>Sweetness</label>
+      <select id="sweetSelect">
+        <option value="">None</option>
+        <option>Normal Sweet</option>
+        <option>Less Sweet</option>
+        <option>Half Sweet</option>
+        <option>Slightly Sweet</option>
+        <option>No Additional Sugar</option>
+      </select>
+    </div>
+    <div class="modifier-group" id="staffAddonGroup">
+      <label>Add-on</label>
+      <select id="addonSelect">
+        <option value="0">None</option>
+        <option value="3">Extra Shot +RM3</option>
+        <option value="6">Extra Double Shot +RM6</option>
+      </select>
+    </div>
+    <div class="modifier-group" id="staffNoteGroup">
+      <label>Customer Note</label>
+      <textarea id="noteInput" placeholder="Less sweet..."></textarea>
+    </div>
+    <button id="addModifierBtn">Add To Cart</button>
+  </div>
 </div>
 
 <div id="receiptModal" class="modifier-modal">
   <div class="modifier-box">
     <div id="receiptContent"></div>
-
     <button id="printReceiptBtn">Print Receipt</button>
     <button id="closeReceiptBtn">Close</button>
   </div>
 </div>
 
-<div
-  id="salesModal"
-  class="modifier-modal"
->
-
+<div id="salesModal" class="modifier-modal">
   <div class="modifier-box sales-modal-box">
-
-   <div class="sales-title-row">
-
-  <h2>Sales Ranking</h2>
-
-  <input
-    id="salesSearch"
-    placeholder="Search product"
-  />
-
-</div>
-
-<div class="sales-tabs">
-
-      <button
-        id="showMonthSalesBtn"
-        class="sales-tab active"
-      >
-        This Month
-      </button>
-
-      <button
-        id="showAllSalesBtn"
-        class="sales-tab"
-      >
-        All Time
-      </button>
-
+    <div class="sales-title-row">
+      <h2>Sales Ranking</h2>
+      <input id="salesSearch" placeholder="Search product" />
     </div>
-
+    <div class="sales-tabs">
+      <button id="showMonthSalesBtn" class="sales-tab active">This Month</button>
+      <button id="showAllSalesBtn" class="sales-tab">All Time</button>
+    </div>
     <div id="allSalesList"></div>
-
-    <button id="closeSalesBtn">
-      Close
-    </button>
-
+    <button id="closeSalesBtn">Close</button>
   </div>
-
 </div>
 
 <div id="staffLoginModal" class="modifier-modal staff-login-modal">
-
   <div class="modifier-box staff-login-box">
-
-    <img
-      src="./logo.png"
-      class="staff-login-logo"
-      alt="Matchalogy"
-    >
-
+    <img src="./logo.png" class="staff-login-logo" alt="Matchalogy">
     <h2>Matchalogy POS</h2>
-
-    <p class="staff-login-subtitle">
-      Staff Login
-    </p>
-
-    <input
-      id="staffEmail"
-      type="email"
-      placeholder="Email"
-      autocomplete="username"
-    >
-
-    <input
-      id="staffPassword"
-      type="password"
-      placeholder="Password"
-      autocomplete="current-password"
-    >
-
-    <button id="staffLoginBtn">
-      Log In
-    </button>
-
-    <p
-      id="staffLoginError"
-      class="staff-login-error"
-    ></p>
-
+    <p class="staff-login-subtitle">Staff Login</p>
+    <input id="staffEmail" type="email" placeholder="Email" autocomplete="username">
+    <input id="staffPassword" type="password" placeholder="Password" autocomplete="current-password">
+    <button id="staffLoginBtn">Log In</button>
+    <p id="staffLoginError" class="staff-login-error"></p>
   </div>
-
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-
-<script
-  type="module"
-  src="app.js"	
-></script>
 
 <div id="monthlyModal" class="modifier-modal">
   <div class="modifier-box">
     <h3>Monthly Revenue</h3>
-    
     <div class="dash-card" id="monthlyRevenueCard">
-      <div>This Month Revenue</div>
+      <div>Monthly Revenue</div>
       <strong>RM <span id="monthRevenue">0</span></strong>
     </div>
 
-    <div id="monthlyRevenueList"></div>
+    <h3>Daily Closing History</h3>
+    <input id="closingSearch" placeholder="Search date (e.g. Sat Jun 20 2026)" />
+    
+    <div id="monthlyRevenueList" style="display:flex; flex-direction:column; gap:10px; margin: 15px 0;"></div>
 
-    <h3>Daily Closing</h3>
     <div id="closingHistory"></div>
 
     <button id="closeMonthlyBtn">Close</button>
   </div>
 </div>
 
-<div
-  id="productModal"
-  class="modifier-modal"
->
+<div id="monthlyReportModal" class="modifier-modal">
+  <div class="modifier-box">
+    <h2 id="reportMonthTitle">Monthly Report</h2>
+    <input type="hidden" id="reportMonth"> 
+    
+    <div id="monthlyReportContent"></div>
+    
+    <button id="downloadReportBtn" class="btn-success" style="background:#2e7d32; color:white; margin-top:10px; padding:10px; width:100%; border:none; border-radius:5px; cursor:pointer;">Download PDF / Print</button>
+    <button id="closeReportBtn" style="margin-top:10px; padding:10px; width:100%; cursor:pointer;">Close</button>
+  </div>
+</div>
 
+<div id="productModal" class="modifier-modal">
   <div class="modifier-box product-editor-box">
-
-    <h2 id="productModalTitle">
-      Add / Edit Product
-    </h2>
-
+    <h2 id="productModalTitle">Add / Edit Product</h2>
     <label class="field-label" for="name">Product Name</label>
-    <input
-      id="name"
-      placeholder="Product Name"
-    />
+    <input id="name" placeholder="Product Name" />
 
     <label class="field-label" for="price">Price</label>
-    <input
-      id="price"
-      type="number"
-      min="0"
-      step="0.10"
-      inputmode="decimal"
-      placeholder="Price"
-    />
+    <input id="price" type="number" min="0" step="0.10" inputmode="decimal" placeholder="Price" />
 
     <label class="field-label" for="category">Category</label>
     <select id="category">
@@ -541,40 +253,17 @@
     </select>
 
     <div class="product-photo-section">
-
-      <label class="field-label" for="productImageFile">
-        Product Photo
-      </label>
-
-      <input
-        id="productImageFile"
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-      />
-
+      <label class="field-label" for="productImageFile">Product Photo</label>
+      <input id="productImageFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" />
       <input id="image" type="hidden" />
       <input id="imagePath" type="hidden" />
 
       <div class="product-photo-preview-wrap">
-        <img
-          id="productImagePreview"
-          src="./logo.png"
-          alt="Product preview"
-        />
+        <img id="productImagePreview" src="./logo.png" alt="Product preview" />
       </div>
 
-      <button
-        id="removeProductImageBtn"
-        type="button"
-        class="secondary-action"
-      >
-        Remove Photo
-      </button>
-
-      <p id="imageUploadStatus" class="image-upload-status">
-        Choose a photo. It will be compressed and uploaded to Cloudinary when you save.
-      </p>
-
+      <button id="removeProductImageBtn" type="button" class="secondary-action">Remove Photo</button>
+      <p id="imageUploadStatus" class="image-upload-status">Choose a photo. It will be compressed and uploaded to Cloudinary when you save.</p>
     </div>
 
     <div class="modifier-group">
@@ -586,173 +275,67 @@
     </div>
 
     <div class="modifier-group">
-
       <label>Show Modifier?</label>
-
       <select id="modifierEnabled">
         <option value="yes">Yes</option>
         <option value="no">No</option>
       </select>
-
     </div>
 
     <div id="productModifierSettings">
-
       <div class="product-setting-grid">
-
         <div class="modifier-group">
           <label>Show Milk?</label>
-          <select id="showMilk">
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
+          <select id="showMilk"><option value="yes">Yes</option><option value="no">No</option></select>
         </div>
-
         <div class="modifier-group">
           <label>Show Ice?</label>
-          <select id="showIce">
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
+          <select id="showIce"><option value="yes">Yes</option><option value="no">No</option></select>
         </div>
-
         <div class="modifier-group">
           <label>Show Sweetness?</label>
-          <select id="showSweet">
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
+          <select id="showSweet"><option value="yes">Yes</option><option value="no">No</option></select>
         </div>
-
         <div class="modifier-group">
           <label>Show Add-on?</label>
-          <select id="showAddon">
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
+          <select id="showAddon"><option value="yes">Yes</option><option value="no">No</option></select>
         </div>
-
         <div class="modifier-group">
           <label>Show Item Note?</label>
-          <select id="showNote">
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
+          <select id="showNote"><option value="yes">Yes</option><option value="no">No</option></select>
         </div>
-
       </div>
 
       <div class="modifier-group" id="productMilkSettings">
-
         <label>Default Milk</label>
-
-        <select id="defaultMilk">
-          <option value="">None</option>
-          <option>Full Cream Milk</option>
-          <option>Oat Milk</option>
-          <option>Coconut Milk</option>
-        </select>
-
+        <select id="defaultMilk"><option value="">None</option><option>Full Cream Milk</option><option>Oat Milk</option><option>Coconut Milk</option></select>
       </div>
-
       <div class="modifier-group" id="productIceSettings">
-
         <label>Default Ice</label>
-
-        <select id="defaultIce">
-          <option value="">None</option>
-          <option>Hot</option>
-          <option>Recommend Ice</option>
-          <option>Less Ice</option>
-          <option>Half Ice</option>
-          <option>Slight Ice</option>
-          <option>No Ice</option>
-        </select>
-
+        <select id="defaultIce"><option value="">None</option><option>Hot</option><option>Recommend Ice</option><option>Less Ice</option><option>Half Ice</option><option>Slight Ice</option><option>No Ice</option></select>
       </div>
-
       <div class="modifier-group" id="productSweetSettings">
-
         <label>Default Sweetness</label>
-
-        <select id="defaultSweet">
-          <option value="">None</option>
-          <option>Normal Sweet</option>
-          <option>Less Sweet</option>
-          <option>Half Sweet</option>
-          <option>Slightly Sweet</option>
-          <option>No Additional Sugar</option>
-        </select>
-
+        <select id="defaultSweet"><option value="">None</option><option>Normal Sweet</option><option>Less Sweet</option><option>Half Sweet</option><option>Slightly Sweet</option><option>No Additional Sugar</option></select>
       </div>
-
       <div class="modifier-group" id="productAddonSettings">
-
         <label>Default Add-on</label>
-
-        <select id="defaultAddon">
-          <option value="0">None</option>
-          <option value="3">Extra Shot +RM3</option>
-          <option value="6">Extra Double Shot +RM6</option>
-        </select>
-
+        <select id="defaultAddon"><option value="0">None</option><option value="3">Extra Shot +RM3</option><option value="6">Extra Double Shot +RM6</option></select>
       </div>
-
       <div class="modifier-group" id="productNoteSettings">
-
         <label>Default Product Note</label>
-
-        <textarea
-          id="defaultNote"
-          placeholder="Example: Oat milk only / No modifier needed..."
-        ></textarea>
-
+        <textarea id="defaultNote" placeholder="Example: Oat milk only / No modifier needed..."></textarea>
       </div>
-
     </div>
 
     <div class="product-modal-actions">
       <button id="saveBtn">Save Product</button>
       <button id="closeProductBtn" class="secondary-action">Close</button>
     </div>
-
-  </div>
-
-</div>
-
-<div id="monthlyReportModal" class="report-modal" style="display:none;">
-    <div class="report-modal-content">
-      <div class="report-modal-header">
-        <h2>📊 月度销售与财务深度报表</h2>
-        <span id="closeMonthlyReportBtn" class="report-modal-close">&times;</span>
-      </div>
-      
-      <div class="report-modal-actions-bar">
-        <div class="month-select-group">
-          <label for="reportMonth">选择查询月份: </label>
-          <input type="month" id="reportMonth">
-        </div>
-        <button id="exportReportBtn" class="report-export-btn">📄 导出 PDF / 打印报表</button>
-      </div>
-
-      <div id="monthlyReportContent">
-        <p style="color:#777; text-align: center; padding: 40px 0;">请在上方选择一个月份以生成深度数据报表...</p>
-      </div>
-    </div>
-  </div>
-
-<div id="monthlyReportModal" class="modifier-modal" style="display:none;">
-  <div class="modifier-box">
-    <h2 id="reportMonthTitle">Monthly Report</h2>
-    <input type="hidden" id="reportMonth"> 
-    
-    <div id="monthlyReportContent"></div>
-    
-    <button id="downloadReportBtn" style="background:#2e7d32; color:white; margin-top:10px;">Download PDF / Print</button>
-    <button id="closeReportBtn" style="margin-top:10px;">Close</button>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script type="module" src="app.js"></script>
 </body>
-
 </html>
