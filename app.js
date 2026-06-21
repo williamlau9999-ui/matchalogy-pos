@@ -840,16 +840,10 @@ async function loadClosingHistory(){
   closings.sort((a, b)=> toDate(b.time) - toDate(a.time));
   allClosings = closings;
 
-  const now = new Date();
-  let currentMonthTotal = 0;
-  
+  // 1. 统计每个月的数据 (计算总额)
   let monthData = {};
   closings.forEach(c=>{
     const date = toDate(c.time);
-    if(date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()){
-      currentMonthTotal += Number(c.revenue) || 0;
-    }
-    
     const monthLabel = `${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
     const inputFormat = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     
@@ -859,9 +853,24 @@ async function loadClosingHistory(){
     monthData[monthLabel].total += Number(c.revenue) || 0;
   });
 
-  setText("monthRevenue", money(currentMonthTotal));
+  // --- [这里删除了原本更新 monthRevenue 的 setText 代码] ---
+
+  // 2. 渲染 Daily Closing (旧的保持不变)
   setHTML("closingHistory", renderClosingCards(closings));
 
+  // 3. 渲染月份列表卡片 (现在在上面)
+  let monthHTML = "";
+  Object.entries(monthData).forEach(([monthLabel, data])=>{
+    monthHTML += `
+      <div class="closing-card" style="cursor:pointer; background:#f0f4f8; border-left: 4px solid #1976d2; padding: 10px; margin-bottom: 5px;" onclick="openMonthlyReport('${data.inputVal}', '${monthLabel}')">
+        <strong>${escapeHTML(monthLabel)}</strong><br>
+        Total Revenue: RM ${money(data.total)}<br>
+        <small style="color:#1976d2; font-weight:bold;">👉 Click for Report</small>
+      </div>
+    `;
+  });
+  setHTML("monthlyRevenueList", monthHTML);
+} 
   // 渲染月份列表卡片
   let monthHTML = "";
   Object.entries(monthData).forEach(([monthLabel, data])=>{
