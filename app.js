@@ -11,10 +11,20 @@ import {
   doc,
   updateDoc,
   query,
-  orderBy
+  orderBy,
+  onSnapshot,
+  runTransaction,
+  serverTimestamp
 }
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut
+}
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // 🔥 FIREBASE CONFIG
 const firebaseConfig = {
@@ -31,6 +41,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+const auth = getAuth(app);
+
+let appStarted = false;
+let currentStaffRole = "";
+let pendingUnsubscribe = null;
 
 let cart = [];
 let editingId = null;
@@ -1881,6 +1896,685 @@ if($("closeMonthlyBtn")){
 
 }
 
+// ---------- SECURE QR PENDING ORDERS ----------
+
+const QR_ADDONS = {
+  "0":{
+    name:"None",
+    price:0
+  },
+  "3":{
+    name:"Extra Shot +RM3",
+    Price:3
+  },
+  "6":{
+    name:"Extra Double Shot +RM6",
+    Price:6
+  }
+};
+
+
+function startPendingOrdersListener(){
+
+  if(pendingUnsubscribe){
+    pendingUnsubscribe();
+  }
+
+  pendingUnsubscribe =
+    onSnapshot(
+      collection(db,"pendingOrders"),
+      snapshot=>{
+
+        const pendingList = [];
+
+        snapshot.forEach(docSnap=>{
+
+          const order =
+            docSnap.data();
+
+          if(order.status === "pending"){
+
+            pendingList.push({
+              id:docSnap.id,
+              ...order
+            });
+
+          }
+
+        });
+
+        pendingList.sort((a,b)=>
+          toDate(b.createdAt)
+          -
+          toDate(a.createdAt)
+        );
+
+        renderPendingOrders(
+          pendingList
+        );
+
+      },
+      error=>{
+
+        console.error(error);
+
+        setHTML(
+          "pendingOrdersList",
+          "<p>Unable to load QR orders.</p>"
+        );
+
+      }
+    );
+
+}
+
+
+function renderPendingOrders(list){
+
+  setText(
+    "pendingOrderCount",
+    list.length
+  );
+
+  let html = "";
+
+  list.forEach(order=>{
+
+    const itemsHTML =
+      (order.items || [])
+      .map(item=>`
+
+        <div>
+
+          <strong>
+            ${escapeHTML(
+              item.nameSnapshot || "Product"
+            )}
+            x${Number(item.qty) || 1}
+          </strong>
+
+          ${
+            item.milk
+            || item.ice
+            || item.sweet
+            ? `
+
+              <small>
+                <br>
+                ${
+                  [
+                    item.milk,
+                    item.ice,
+                    item.sweet
+                  ]
+                  .filter(Boolean)
+                  .map(escapeHTML)
+                  .join(" · ")
+                }
+              </small>
+
+            `
+            : ""
+          }
+
+          ${
+            item.addonName
+            &&
+            item.addonName !== "None"
+            ? `
+
+              <small>
+                <br>
+                ${escapeHTML(item.addonName)}
+              </small>
+
+            `
+            : ""
+          }
+
+          ${
+            item.note
+            ? `
+
+              <small>
+                <br>
+                Note:
+                ${escapeHTML(item.note)}
+              </small>
+
+            `
+            : ""
+          }
+
+        </div>
+
+      `)
+      .join("");
+
+
+    html += `
+
+      <div class="pending-order-card">
+
+        <div class="pending-order-header">
+
+          <span>
+            ${escapeHTML(
+              order.customerOrderNo || "QR"
+            )}
+          </span>
+
+          <span>
+            Est. RM
+            ${money(order.estimatedTotal)}
+          </span>
+
+        </div>
+
+        <div class="pending-customer">
+
+          Pickup:
+          <strong>
+            ${escapeHTML(
+              order.customerName || ""
+            )}
+          </strong>
+
+          ${
+            order.customerPhone
+            ? `
+
+              <br>
+              Phone:
+              ${escapeHTML(order.customerPhone)}
+
+            `
+            : ""
+          }
+
+        </div>
+
+        <div class="pending-items">
+          ${itemsHTML}
+        </div>
+
+        ${
+          order.note
+          ? `
+
+            <div class="pending-customer">
+              Order Note:
+              ${escapeHTML(order.note)}
+            </div>
+
+          `
+          : ""
+        }
+
+        <div class="pending-actions">
+
+          <button
+            onclick="acceptPendingOrder('${order.id}')"
+          >
+            Accept & Pay
+          </button>
+
+          <button
+            class="reject-pending-btn"
+            onclick="rejectPendingOrder('${order.id}')"
+          >
+            Reject
+          </button>
+
+        </div>
+
+      </div>
+
+    `;
+
+  });
+
+  setHTML(
+    "pendingOrdersList",
+    html || "<p>No pending QR orders.</p>"
+  );
+
+}
+
+
+window.acceptPendingOrder =
+async function(id){
+
+  const payment =
+    prompt(
+      "Payment Method: Cash / TNG / Shopee",
+      "TNG"
+    );
+
+  if(payment === null){
+    return;
+  }
+
+  const allowedPayments = [
+    "Cash",
+    "TNG",
+    "Shopee"
+  ];
+
+  if(!allowedPayments.includes(payment)){
+
+    alert(
+      "Please enter Cash, TNG or Shopee."
+    );
+
+    return;
+
+  }
+
+
+  const pendingRef =
+    doc(db,"pendingOrders",id);
+
+  const officialOrderRef =
+    doc(collection(db,"orders"));
+
+  const orderNo =
+    Date.now()
+    .toString()
+    .slice(-6);
+
+
+  try{
+
+    await runTransaction(
+      db,
+      async transaction=>{
+
+        const pendingSnap =
+          await transaction.get(
+            pendingRef
+          );
+
+        if(!pendingSnap.exists()){
+
+          throw new Error(
+            "QR order no longer exists."
+          );
+
+        }
+
+        const pending =
+          pendingSnap.data();
+
+        if(pending.status !== "pending"){
+
+          throw new Error(
+            "This order has already been handled."
+          );
+
+        }
+
+        const pendingItems =
+          pending.items || [];
+
+        if(
+          pendingItems.length === 0
+          ||
+          pendingItems.length > 30
+        ){
+
+          throw new Error(
+            "Invalid QR order."
+          );
+
+        }
+
+
+        const officialItems = [];
+        let subtotal = 0;
+
+
+        for(const item of pendingItems){
+
+          const productRef =
+            doc(
+              db,
+              "products",
+              String(item.productId)
+            );
+
+          const productSnap =
+            await transaction.get(
+              productRef
+            );
+
+          if(!productSnap.exists()){
+
+            throw new Error(
+              "A product is no longer available."
+            );
+
+          }
+
+          const product =
+            productSnap.data();
+
+          if(product.available === false){
+
+            throw new Error(
+              `${product.name} is sold out.`
+            );
+
+          }
+
+          const quantity =
+            Math.min(
+              20,
+              Math.max(
+                1,
+                Number(item.qty) || 1
+              )
+            );
+
+          const addonCode =
+            String(
+              item.addonCode || "0"
+            );
+
+          const addon =
+            QR_ADDONS[addonCode]
+            ||
+            QR_ADDONS["0"];
+
+          const unitPrice =
+            (
+              Number(product.price) || 0
+            )
+            +
+            addon.price;
+
+          officialItems.push({
+            productId:productSnap.id,
+            name:product.name || "Product",
+            price:unitPrice,
+            qty:quantity,
+            milk:String(item.milk || "").slice(0,40),
+            ice:String(item.ice || "").slice(0,40),
+            sweet:String(item.sweet || "").slice(0,40),
+            addon:addon.name,
+            addonCode,
+            note:String(item.note || "").slice(0,200)
+          });
+
+          subtotal +=
+            unitPrice * quantity;
+
+        }
+
+
+        transaction.set(
+          officialOrderRef,
+          {
+            orderNo,
+            items:officialItems,
+            subtotal,
+            discount:0,
+            total:subtotal,
+            payment,
+            note:
+              String(
+                pending.note || ""
+              ).slice(0,300),
+            source:"QR",
+            customerName:
+              String(
+                pending.customerName || ""
+              ).slice(0,50),
+            customerPhone:
+              String(
+                pending.customerPhone || ""
+              ).slice(0,30),
+            customerOrderNo:
+              pending.customerOrderNo || "",
+            time:
+              serverTimestamp()
+          }
+        );
+
+
+        transaction.update(
+          pendingRef,
+          {
+            status:"accepted",
+            payment,
+            acceptedAt:
+              serverTimestamp(),
+            officialOrderNo:
+              orderNo,
+            officialOrderId:
+              officialOrderRef.id,
+            finalTotal:
+              subtotal
+          }
+        );
+
+      }
+    );
+
+
+    alert(
+      `QR order accepted ✅\nOrder #${orderNo}`
+    );
+
+    loadDashboard();
+
+
+  }catch(error){
+
+    console.error(error);
+
+    alert(
+      error.message
+      ||
+      "Unable to accept this order."
+    );
+
+  }
+
+}
+
+
+window.rejectPendingOrder =
+async function(id){
+
+  const reason =
+    prompt(
+      "Reason for rejection",
+      "Item unavailable"
+    );
+
+  if(reason === null){
+    return;
+  }
+
+  await updateDoc(
+    doc(db,"pendingOrders",id),
+    {
+      status:"rejected",
+      rejectReason:
+        String(reason).slice(0,200),
+      rejectedAt:
+        serverTimestamp()
+    }
+  );
+
+}
+
+// ---------- STAFF AUTH ----------
+
+async function startPOSForStaff(user){
+
+  const staffSnap =
+    await getDoc(
+      doc(db,"users",user.uid)
+    );
+
+  if(!staffSnap.exists()){
+
+    await signOut(auth);
+
+    alert("This account is not registered as staff.");
+
+    return;
+
+  }
+
+  const staff =
+    staffSnap.data();
+
+  const allowedRoles = [
+    "owner",
+    "manager",
+    "cashier"
+  ];
+
+  if(
+    staff.active !== true
+    ||
+    !allowedRoles.includes(staff.role)
+  ){
+
+    await signOut(auth);
+
+    alert("This staff account is inactive.");
+
+    return;
+
+  }
+
+  currentStaffRole =
+    staff.role;
+
+  hide("staffLoginModal");
+
+  if(appStarted){
+    return;
+  }
+
+  appStarted = true;
+
+  loadProducts();
+  loadDashboard();
+  loadClosingHistory();
+  startPendingOrdersListener();
+
+}
+
+
+if($("staffLoginBtn")){
+
+  $("staffLoginBtn")
+  .addEventListener("click",async()=>{
+
+    const email =
+      getValue("staffEmail").trim();
+
+    const password =
+      getValue("staffPassword");
+
+    setText("staffLoginError","");
+
+    if(!email || !password){
+
+      setText(
+        "staffLoginError",
+        "Please enter email and password."
+      );
+
+      return;
+
+    }
+
+    $("staffLoginBtn").disabled = true;
+    $("staffLoginBtn").innerText = "Logging in...";
+
+    try{
+
+      await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+    }catch(error){
+
+      console.error(error);
+
+      setText(
+        "staffLoginError",
+        "Login failed. Check your email and password."
+      );
+
+    }finally{
+
+      $("staffLoginBtn").disabled = false;
+      $("staffLoginBtn").innerText = "Log In";
+
+    }
+
+  });
+
+}
+
+
+if($("logoutBtn")){
+
+  $("logoutBtn")
+  .addEventListener("click",async()=>{
+
+    if(pendingUnsubscribe){
+      pendingUnsubscribe();
+      pendingUnsubscribe = null;
+    }
+
+    appStarted = false;
+    currentStaffRole = "";
+
+    await signOut(auth);
+
+  });
+
+}
+
+
+onAuthStateChanged(
+  auth,
+  async user=>{
+
+    if(user){
+
+      try{
+
+        await startPOSForStaff(user);
+
+      }catch(error){
+
+        console.error(error);
+
+        await signOut(auth);
+
+        show("staffLoginModal");
+
+      }
+
+    }else{
+
+      show("staffLoginModal");
+
+    }
+
+  }
+);
 
 // ---------- START ----------
 
@@ -2002,7 +2696,3 @@ if($("closeSalesBtn")){
   });
 
 }
-
-loadProducts();
-loadDashboard();
-loadClosingHistory();

@@ -421,3 +421,109 @@ button{
   }
 
 }
+
+.pending-orders{
+  margin-top:24px;
+  padding:18px;
+  border-radius:18px;
+  background:#f5f5f5;
+}
+
+.pending-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.pending-title h2{
+  margin:0;
+}
+
+#pendingOrderCount{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:30px;
+  height:30px;
+  padding:0 9px;
+  border-radius:999px;
+  background:#000;
+  color:#fff;
+  font-size:13px;
+}
+
+.pending-order-card{
+  margin-top:14px;
+  padding:15px;
+  border-radius:14px;
+  background:#fff;
+  border:1px solid #ddd;
+}
+
+.pending-order-header{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  font-weight:bold;
+}
+
+.pending-customer{
+  margin-top:8px;
+  font-size:14px;
+}
+
+.pending-items{
+  margin-top:12px;
+  line-height:1.5;
+}
+
+.pending-actions{
+  display:flex;
+  gap:9px;
+  margin-top:14px;
+}
+
+.pending-actions button{
+  flex:1;
+}
+
+.reject-pending-btn{
+  background:#e7e7e7;
+  color:#111;
+}
+
+.staff-login-modal{
+  display:flex;
+  z-index:20000;
+  background:#f4f4f2;
+}
+
+.staff-login-box{
+  text-align:center;
+}
+
+.staff-login-logo{
+  width:90px;
+  height:90px;
+  object-fit:cover;
+  border-radius:18px;
+}
+
+.staff-login-subtitle{
+  color:#777;
+  margin-top:-5px;
+}
+
+.staff-login-error{
+  min-height:22px;
+  color:#b42318;
+  font-size:14px;
+}
+
+#logoutBtn{
+  width:auto;
+  padding:9px 14px;
+  border-radius:999px;
+  font-size:13px;
+}

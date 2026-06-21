@@ -123,6 +123,22 @@
 
   <div class="dashboard">
 
+<div class="pending-orders">
+
+  <div class="pending-title">
+
+    <h2>QR Pending Orders</h2>
+
+    <span id="pendingOrderCount">
+      0
+    </span>
+
+  </div>
+
+  <div id="pendingOrdersList"></div>
+
+</div>
+
 <div class="recent-orders">
 
   <h2>Recent Orders</h2>
@@ -138,6 +154,10 @@
   <button id="openProductBtn">
     + Product
   </button>
+
+<button id="logoutBtn">
+  Log Out
+</button>
 
 </div>
 
@@ -384,6 +404,49 @@
     <button id="closeSalesBtn">
       Close
     </button>
+
+  </div>
+
+</div>
+
+<div id="staffLoginModal" class="modifier-modal staff-login-modal">
+
+  <div class="modifier-box staff-login-box">
+
+    <img
+      src="./logo.png"
+      class="staff-login-logo"
+      alt="Matchalogy"
+    >
+
+    <h2>Matchalogy POS</h2>
+
+    <p class="staff-login-subtitle">
+      Staff Login
+    </p>
+
+    <input
+      id="staffEmail"
+      type="email"
+      placeholder="Email"
+      autocomplete="username"
+    >
+
+    <input
+      id="staffPassword"
+      type="password"
+      placeholder="Password"
+      autocomplete="current-password"
+    >
+
+    <button id="staffLoginBtn">
+      Log In
+    </button>
+
+    <p
+      id="staffLoginError"
+      class="staff-login-error"
+    ></p>
 
   </div>
 
