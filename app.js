@@ -1223,4 +1223,4 @@ if($("showAllSalesBtn")){
   });
 }
 
-if($("closeSalesBtn")){ $("closeSalesBtn").addEventListener("click",()=>{ hide("salesModal"); }); }
+if($("closeSalesBtn")){ $("closeSalesBtn").addEventListener("click",()=>{ hide("salesModal"); }); 
