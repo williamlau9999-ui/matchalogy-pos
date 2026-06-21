@@ -1,386 +1,164 @@
 <!DOCTYPE html>
 <html lang="zh">
-
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4f4f2">
   <title>Matchalogy Order</title>
-
   <link rel="icon" href="./logo.png">
-
-  <link
-    rel="stylesheet"
-    href="./customer.css"
-  >
-
+  <link rel="apple-touch-icon" href="./logo.png">
+  <link rel="stylesheet" href="./customer.css">
 </head>
-
 <body>
 
 <header class="customer-header">
-
-  <img
-    src="./logo.png"
-    alt="Matchalogy"
-    class="brand-logo"
-  >
-
+  <img src="./logo.png" alt="Matchalogy" class="brand-logo">
   <div>
-
     <h1>Matchalogy</h1>
-
     <p>Order & collect at counter</p>
-
   </div>
-
 </header>
 
-<div
-  id="storeStatusBanner"
-  class="store-status-banner"
->
+<div id="storeStatusBanner" class="store-status-banner">
   Loading store status...
 </div>
 
-
 <main>
 
-  <div class="category-tabs">
-
-    <button
-      class="category-tab active"
-      data-category="all"
+  <div class="customer-search-wrap">
+    <input
+      id="customerSearch"
+      type="search"
+      placeholder="Search menu"
+      autocomplete="off"
     >
-      All
-    </button>
-
-    <button
-      class="category-tab"
-      data-category="matcha"
-    >
-      Matcha
-    </button>
-
-    <button
-      class="category-tab"
-      data-category="espresso"
-    >
-      Espresso
-    </button>
-
-    <button
-      class="category-tab"
-      data-category="basque"
-    >
-      Basque
-    </button>
-
-    <button
-      class="category-tab"
-      data-category="mousse"
-    >
-      Mousse
-    </button>
-
-    <button
-      class="category-tab"
-      data-category="other"
-    >
-      Other
-    </button>
-
   </div>
 
+  <div class="category-tabs">
+    <button class="category-tab active" data-category="all">All</button>
+    <button class="category-tab" data-category="matcha">Matcha</button>
+    <button class="category-tab" data-category="espresso">Espresso</button>
+    <button class="category-tab" data-category="basque">Basque</button>
+    <button class="category-tab" data-category="mousse">Mousse</button>
+    <button class="category-tab" data-category="other">Other</button>
+  </div>
 
-  <div
-    id="customerProducts"
-    class="customer-products"
-  ></div>
+  <div id="customerProducts" class="customer-products">
+    <div class="empty-state">Loading menu...</div>
+  </div>
 
 </main>
 
-
-<button
-  id="openCartBtn"
-  class="floating-cart"
->
-
-  <span>
-    Cart
-    <strong id="cartCount">0</strong>
-  </span>
-
-  <strong>
-    RM <span id="floatingTotal">0.00</span>
-  </strong>
-
+<button id="openCartBtn" class="floating-cart">
+  <span>Cart <strong id="cartCount">0</strong></span>
+  <strong>RM <span id="floatingTotal">0.00</span></strong>
 </button>
 
-
-<!-- Modifier Popup -->
-
-<div
-  id="customerModifierModal"
-  class="customer-modal"
->
-
+<div id="customerModifierModal" class="customer-modal">
   <div class="customer-modal-box">
 
     <div class="modal-heading">
-
-      <h2 id="customerModifierTitle">
-        Product
-      </h2>
-
-      <button
-        id="closeModifierBtn"
-        class="icon-button"
-      >
-        ×
-      </button>
-
+      <h2 id="customerModifierTitle">Product</h2>
+      <button id="closeModifierBtn" class="icon-button" aria-label="Close">×</button>
     </div>
 
-
-    <div class="modifier-field">
-
+    <div class="modifier-field" id="customerMilkGroup">
       <label>Milk</label>
-
-      <select id="customerMilk">
-
-        <option value="">None</option>
-        <option>Fresh Milk</option>
-        <option>Oat Milk</option>
-        <option>Coconut Milk</option>
-
-      </select>
-
+      <select id="customerMilk"></select>
     </div>
 
-
-    <div class="modifier-field">
-
+    <div class="modifier-field" id="customerIceGroup">
       <label>Ice</label>
-
-      <select id="customerIce">
-
-        <option value="">None</option>
-        <option>Normal Ice</option>
-        <option>Less Ice</option>
-        <option>No Ice</option>
-        <option>Hot</option>
-
-      </select>
-
+      <select id="customerIce"></select>
     </div>
 
-
-    <div class="modifier-field">
-
+    <div class="modifier-field" id="customerSweetGroup">
       <label>Sweetness</label>
-
-      <select id="customerSweet">
-
-        <option value="">None</option>
-        <option>100%</option>
-        <option>70%</option>
-        <option>50%</option>
-        <option>30%</option>
-        <option>0%</option>
-
-      </select>
-
+      <select id="customerSweet"></select>
     </div>
 
-
-    <div class="modifier-field">
-
+    <div class="modifier-field" id="customerAddonGroup">
       <label>Add-on</label>
-
-      <select id="customerAddon">
-
-        <option value="0">
-          None
-        </option>
-
-        <option value="2">
-          Extra Shot +RM2
-        </option>
-
-        <option value="3">
-          Matcha Foam +RM3
-        </option>
-
-      </select>
-
+      <select id="customerAddon"></select>
     </div>
 
-
-    <div class="modifier-field">
-
+    <div class="modifier-field" id="customerNoteGroup">
       <label>Item Note</label>
-
       <textarea
         id="customerItemNote"
+        maxlength="200"
         placeholder="Example: no straw, pack separately..."
       ></textarea>
-
     </div>
 
-
-    <button id="customerAddModifierBtn">
-      Add To Cart
-    </button>
+    <button id="customerAddModifierBtn">Add To Cart</button>
 
   </div>
-
 </div>
 
-
-<!-- Cart Popup -->
-
-<div
-  id="customerCartModal"
-  class="customer-modal"
->
-
+<div id="customerCartModal" class="customer-modal">
   <div class="customer-modal-box cart-modal-box">
 
     <div class="modal-heading">
-
       <h2>Your Order</h2>
-
-      <button
-        id="closeCartBtn"
-        class="icon-button"
-      >
-        ×
-      </button>
-
+      <button id="closeCartBtn" class="icon-button" aria-label="Close">×</button>
     </div>
-
 
     <div id="customerCartList"></div>
 
-
     <div class="checkout-total">
-
       <span>Total</span>
-
-      <strong>
-        RM <span id="customerTotal">0.00</span>
-      </strong>
-
+      <strong>RM <span id="customerTotal">0.00</span></strong>
     </div>
-
 
     <div class="customer-details">
+      <label for="customerName">Pickup Name</label>
+      <input id="customerName" maxlength="50" placeholder="Your name" autocomplete="name">
 
-      <label>
-        Pickup Name
-      </label>
+      <label for="customerPhone">Phone Number</label>
+      <input id="customerPhone" maxlength="30" inputmode="tel" placeholder="Optional" autocomplete="tel">
 
-      <input
-        id="customerName"
-        placeholder="Your name"
-      >
-
-
-      <label>
-        Phone Number
-      </label>
-
-      <input
-        id="customerPhone"
-        inputmode="tel"
-        placeholder="Optional"
-      >
-
-
-      <label>
-        Order Note
-      </label>
-
+      <label for="customerOrderNote">Order Note</label>
       <textarea
         id="customerOrderNote"
+        maxlength="300"
         placeholder="Example: collect at 3:30 PM..."
       ></textarea>
-
     </div>
 
-
-    <button id="submitCustomerOrderBtn">
-      Submit Order
-    </button>
+    <button id="submitCustomerOrderBtn">Submit Order</button>
 
     <p class="payment-notice">
       Please pay at the counter after submitting.
     </p>
 
   </div>
-
 </div>
 
-
-<!-- Success Popup -->
-
-<div
-  id="orderSuccessModal"
-  class="customer-modal"
->
-
+<div id="orderSuccessModal" class="customer-modal">
   <div class="customer-modal-box success-box">
 
-    <div class="success-icon">
-      ✓
-    </div>
-
+    <div class="success-icon">✓</div>
     <h2>Order Submitted</h2>
-
     <p>Your order number is</p>
 
-    <strong
-      id="customerOrderNumber"
-      class="customer-order-number"
-    >
+    <strong id="customerOrderNumber" class="customer-order-number">
       QR000000
     </strong>
 
-    <p>
-      Please show this number and pay at the counter.
-    </p>
+    <div id="customerOrderStatus" class="customer-order-status pending">
+      Waiting for shop confirmation...
+    </div>
 
-    <button id="closeSuccessBtn">
-      Done
-    </button>
+    <div id="customerOrderStatusDetail" class="customer-order-status-detail">
+      Please show this number and pay at the counter.
+    </div>
+
+    <button id="closeSuccessBtn">Done</button>
 
   </div>
-
 </div>
 
-<div
-  id="customerOrderStatus"
-  class="customer-order-status"
->
-  Waiting for shop confirmation...
-</div>
-
-<div
-  id="customerOrderStatusDetail"
-  class="customer-order-status-detail"
-></div>
-
-<script
-  type="module"
-  src="./customer.js"
-></script>
-
+<script type="module" src="./customer.js"></script>
 </body>
-
 </html>

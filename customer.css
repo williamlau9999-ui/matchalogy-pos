@@ -441,3 +441,52 @@ textarea{
   color:#666;
   line-height:1.5;
 }
+
+.customer-search-wrap{
+  margin-bottom:12px;
+}
+
+#customerSearch{
+  margin:0;
+  padding:13px 15px;
+  background:#fff;
+  border-color:#dfdfda;
+}
+
+.customer-product{
+  position:relative;
+}
+
+.customer-product.sold-out{
+  opacity:0.72;
+}
+
+.customer-sold-out-badge{
+  position:absolute;
+  top:10px;
+  right:10px;
+  z-index:2;
+  padding:6px 9px;
+  border-radius:999px;
+  background:rgba(0,0,0,0.78);
+  color:#fff;
+  font-size:11px;
+  font-weight:700;
+}
+
+.customer-product img{
+  min-height:140px;
+}
+
+.modifier-field[hidden]{
+  display:none !important;
+}
+
+.customer-modal-box button:disabled{
+  cursor:not-allowed;
+  opacity:0.58;
+}
+
+.customer-order-status-detail{
+  min-height:22px;
+}

@@ -256,7 +256,7 @@
       Product
     </h2>
 
-    <div class="modifier-group">
+    <div class="modifier-group" id="staffMilkGroup">
 
       <label>Milk</label>
 
@@ -276,7 +276,7 @@
 
     </div>
 
-    <div class="modifier-group">
+    <div class="modifier-group" id="staffIceGroup">
 
       <label>Ice</label>
 
@@ -302,7 +302,7 @@
 
     </div>
 
-    <div class="modifier-group">
+    <div class="modifier-group" id="staffSweetGroup">
 
      <label>Sweetness</label>
 
@@ -326,7 +326,7 @@
 
     </div>
 
-    <div class="modifier-group">
+    <div class="modifier-group" id="staffAddonGroup">
 
       <label>Add-on</label>
 
@@ -348,7 +348,7 @@
 
     </div>
 
-    <div class="modifier-group">
+    <div class="modifier-group" id="staffNoteGroup">
 
       <label>Customer Note</label>
 
@@ -504,165 +504,218 @@
 
 </div>
 
+
 <div
   id="productModal"
   class="modifier-modal"
 >
 
-  <div class="modifier-box">
+  <div class="modifier-box product-editor-box">
 
     <h2 id="productModalTitle">
       Add / Edit Product
     </h2>
 
+    <label class="field-label" for="name">Product Name</label>
     <input
       id="name"
       placeholder="Product Name"
     />
 
+    <label class="field-label" for="price">Price</label>
     <input
       id="price"
+      type="number"
+      min="0"
+      step="0.10"
+      inputmode="decimal"
       placeholder="Price"
     />
 
-    <input
-      id="category"
-      placeholder="Category"
-    />
+    <label class="field-label" for="category">Category</label>
+    <select id="category">
+      <option value="matcha">Matcha</option>
+      <option value="espresso">Espresso</option>
+      <option value="basque">Basque</option>
+      <option value="mousse">Mousse</option>
+      <option value="other">Other</option>
+    </select>
 
-    <input
-      id="image"
-      placeholder="Image URL"
-    />
+    <div class="product-photo-section">
+
+      <label class="field-label" for="productImageFile">
+        Product Photo
+      </label>
+
+      <input
+        id="productImageFile"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+      />
+
+      <input id="image" type="hidden" />
+      <input id="imagePath" type="hidden" />
+
+      <div class="product-photo-preview-wrap">
+        <img
+          id="productImagePreview"
+          src="./logo.png"
+          alt="Product preview"
+        />
+      </div>
+
+      <button
+        id="removeProductImageBtn"
+        type="button"
+        class="secondary-action"
+      >
+        Remove Photo
+      </button>
+
+      <p id="imageUploadStatus" class="image-upload-status">
+        Choose a photo. It will be compressed and uploaded when you save.
+      </p>
+
+    </div>
+
+    <div class="modifier-group">
+      <label>Availability</label>
+      <select id="productAvailable">
+        <option value="yes">Available</option>
+        <option value="no">Sold Out</option>
+      </select>
+    </div>
 
     <div class="modifier-group">
 
       <label>Show Modifier?</label>
 
       <select id="modifierEnabled">
-
-        <option value="yes">
-          Yes
-        </option>
-
-        <option value="no">
-          No
-        </option>
-
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
       </select>
 
     </div>
 
-    <div class="modifier-group">
+    <div id="productModifierSettings">
 
-  <label>Default Milk</label>
+      <div class="product-setting-grid">
 
-  <select id="defaultMilk">
+        <div class="modifier-group">
+          <label>Show Milk?</label>
+          <select id="showMilk">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
 
-  <option value="">
-    None
-  </option>
+        <div class="modifier-group">
+          <label>Show Ice?</label>
+          <select id="showIce">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
 
-  <option>Fresh Milk</option>
+        <div class="modifier-group">
+          <label>Show Sweetness?</label>
+          <select id="showSweet">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
 
-  <option>Oat Milk</option>
+        <div class="modifier-group">
+          <label>Show Add-on?</label>
+          <select id="showAddon">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
 
-  <option>Coconut Milk</option>
+        <div class="modifier-group">
+          <label>Show Item Note?</label>
+          <select id="showNote">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
 
-</select>
+      </div>
+
+      <div class="modifier-group" id="productMilkSettings">
+
+        <label>Default Milk</label>
+
+        <select id="defaultMilk">
+          <option value="">None</option>
+          <option>Full Cream Milk</option>
+          <option>Oat Milk</option>
+          <option>Coconut Milk</option>
+        </select>
+
+      </div>
+
+      <div class="modifier-group" id="productIceSettings">
+
+        <label>Default Ice</label>
+
+        <select id="defaultIce">
+          <option value="">None</option>
+          <option>Hot</option>
+          <option>Recommend Ice</option>
+          <option>Less Ice</option>
+          <option>Half Ice</option>
+          <option>Slight Ice</option>
+          <option>No Ice</option>
+        </select>
+
+      </div>
+
+      <div class="modifier-group" id="productSweetSettings">
+
+        <label>Default Sweetness</label>
+
+        <select id="defaultSweet">
+          <option value="">None</option>
+          <option>Normal Sweet</option>
+          <option>Less Sweet</option>
+          <option>Half Sweet</option>
+          <option>Slightly Sweet</option>
+          <option>No Additional Sugar</option>
+        </select>
+
+      </div>
+
+      <div class="modifier-group" id="productAddonSettings">
+
+        <label>Default Add-on</label>
+
+        <select id="defaultAddon">
+          <option value="0">None</option>
+          <option value="3">Extra Shot +RM3</option>
+          <option value="6">Extra Double Shot +RM6</option>
+        </select>
+
+      </div>
+
+      <div class="modifier-group" id="productNoteSettings">
+
+        <label>Default Product Note</label>
+
+        <textarea
+          id="defaultNote"
+          placeholder="Example: Oat milk only / No modifier needed..."
+        ></textarea>
+
+      </div>
 
     </div>
 
-    <div class="modifier-group">
-
-      <label>Default Ice</label>
-
-      <select id="defaultIce">
-
-  <option value="">
-    None
-  </option>
-
- <option>Hot</option>
-
- <option>Recommend Ice</option>
-
- <option>Less Ice</option>
-
- <option>Half Ice</option>
-
- <option>Slight Ice</option>
-
- <option>No Ice</option>
-
-</select>
-
+    <div class="product-modal-actions">
+      <button id="saveBtn">Save Product</button>
+      <button id="closeProductBtn" class="secondary-action">Close</button>
     </div>
-
-    <div class="modifier-group">
-
-      <label>Default Sweetness</label>
-
-      <select id="defaultSweet">
-
-  <option value="">
-    None
-  </option>
-
-  <option>Normal Sweet</option>
-
-  <option>Less Sweet</option>
-
-  <option>Half Sweet</option>
-
-  <option>Slightly Sweet</option>
-
-  <option>No Additional Sugar</option>
-
-</select>
-
-    </div>
-
-    <div class="modifier-group">
-
-      <label>Default Add-on</label>
-
-      <select id="defaultAddon">
-
-        <option value="0">
-          None
-        </option>
-
-        <option value="3">
-          Extra Shot +RM3
-        </option>
-
-        <option value="6">
-          Extra Double Shot +RM6
-        </option>
-
-      </select>
-
-    </div>
-
-    <div class="modifier-group">
-
-      <label>Default Product Note</label>
-
-      <textarea
-        id="defaultNote"
-        placeholder="Example: Oat milk only / No modifier needed..."
-      ></textarea>
-
-    </div>
-
-    <button id="saveBtn">
-      Save Product
-    </button>
-
-    <button id="closeProductBtn">
-      Close
-    </button>
 
   </div>
 

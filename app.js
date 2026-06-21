@@ -27,6 +27,15 @@ import {
 }
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
+}
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
 // 🔥 FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyD1ggANpmGObfPNaD0aFK9ZdM_hvyEFh2A",
@@ -43,6 +52,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 let appStarted = false;
 let currentStaffRole = "";
@@ -57,6 +67,11 @@ let allClosings = [];
 let fullMonthSales = {};
 let fullAllTimeSales = {};
 let currentSalesView = "month";
+let productCache = new Map();
+let pendingImageFile = null;
+let editingImageUrl = "";
+let editingImagePath = "";
+let removeCurrentImage = false;
 
 
 // ---------- HELPERS ----------
@@ -164,288 +179,395 @@ function getModifierHTML(item){
 }
 
 
+const DEFAULT_MODIFIER_OPTIONS = {
+  milk:[
+    {value:"",label:"None"},
+    {value:"Full Cream Milk",label:"Full Cream Milk"},
+    {value:"Oat Milk",label:"Oat Milk"},
+    {value:"Coconut Milk",label:"Coconut Milk"}
+  ],
+  ice:[
+    {value:"",label:"None"},
+    {value:"Hot",label:"Hot"},
+    {value:"Recommend Ice",label:"Recommend Ice"},
+    {value:"Less Ice",label:"Less Ice"},
+    {value:"Half Ice",label:"Half Ice"},
+    {value:"Slight Ice",label:"Slight Ice"},
+    {value:"No Ice",label:"No Ice"}
+  ],
+  sweet:[
+    {value:"",label:"None"},
+    {value:"Normal Sweet",label:"Normal Sweet"},
+    {value:"Less Sweet",label:"Less Sweet"},
+    {value:"Half Sweet",label:"Half Sweet"},
+    {value:"Slightly Sweet",label:"Slightly Sweet"},
+    {value:"No Additional Sugar",label:"No Additional Sugar"}
+  ],
+  addon:[
+    {value:"0",label:"None",price:0},
+    {value:"3",label:"Extra Shot +RM3",price:3},
+    {value:"6",label:"Extra Double Shot +RM6",price:6}
+  ]
+};
+
+function booleanValue(value,fallback=false){
+  if(typeof value === "boolean") return value;
+  if(value === "yes" || value === 1 || value === "1") return true;
+  if(value === "no" || value === 0 || value === "0") return false;
+  return fallback;
+}
+
+function normalizeTextOptions(options,fallback){
+  const source = Array.isArray(options) && options.length ? options : fallback;
+  return source.map(option=>{
+    if(typeof option === "string"){
+      return {value:option,label:option || "None"};
+    }
+    return {
+      value:String(option?.value ?? option?.label ?? ""),
+      label:String(option?.label ?? option?.value ?? "None")
+    };
+  });
+}
+
+function normalizeAddonOptions(options){
+  const source = Array.isArray(options) && options.length
+    ? options
+    : DEFAULT_MODIFIER_OPTIONS.addon;
+
+  const normalized = source.map(option=>{
+    if(typeof option === "string"){
+      const priceMatch = option.match(/RM\s*(\d+(?:\.\d+)?)/i);
+      const price = priceMatch ? Number(priceMatch[1]) : 0;
+      return {value:String(price),label:option,price};
+    }
+
+    const price = Number(option?.price ?? option?.value) || 0;
+    return {
+      value:String(option?.value ?? price),
+      label:String(option?.label ?? option?.name ?? (price ? `Add-on +RM${price}` : "None")),
+      price
+    };
+  });
+
+  if(!normalized.some(option=>Number(option.price) === 0)){
+    normalized.unshift({value:"0",label:"None",price:0});
+  }
+
+  return normalized;
+}
+
+function getProductModifierConfig(product={}){
+  const enabled = booleanValue(product.modifierEnabled,false);
+
+  return {
+    enabled,
+    showMilk:enabled && booleanValue(product.showMilk,true),
+    showIce:enabled && booleanValue(product.showIce,true),
+    showSweet:enabled && booleanValue(product.showSweet,true),
+    showAddon:enabled && booleanValue(product.showAddon,true),
+    showNote:enabled && booleanValue(product.showNote,true),
+    milkOptions:normalizeTextOptions(product.milkOptions,DEFAULT_MODIFIER_OPTIONS.milk),
+    iceOptions:normalizeTextOptions(product.iceOptions,DEFAULT_MODIFIER_OPTIONS.ice),
+    sweetOptions:normalizeTextOptions(product.sweetOptions,DEFAULT_MODIFIER_OPTIONS.sweet),
+    addonOptions:normalizeAddonOptions(product.addonOptions)
+  };
+}
+
+function populateSelect(id,options,selectedValue=""){
+  const select = $(id);
+  if(!select) return;
+
+  const normalizedSelected = String(selectedValue ?? "");
+  let list = [...options];
+
+  if(
+    normalizedSelected
+    && !list.some(option=>String(option.value) === normalizedSelected)
+  ){
+    list.push({value:normalizedSelected,label:normalizedSelected,price:0});
+  }
+
+  select.innerHTML = list.map(option=>`
+    <option
+      value="${escapeHTML(option.value)}"
+      data-price="${Number(option.price) || 0}"
+    >${escapeHTML(option.label)}</option>
+  `).join("");
+
+  select.value = list.some(option=>String(option.value) === normalizedSelected)
+    ? normalizedSelected
+    : String(list[0]?.value ?? "");
+}
+
+function setVisible(id,visible){
+  const element = $(id);
+  if(element) element.style.display = visible ? "" : "none";
+}
+
+function syncProductSettingsVisibility(){
+  const enabled = getValue("modifierEnabled") === "yes";
+  setVisible("productModifierSettings",enabled);
+  setVisible("productMilkSettings",enabled && getValue("showMilk") === "yes");
+  setVisible("productIceSettings",enabled && getValue("showIce") === "yes");
+  setVisible("productSweetSettings",enabled && getValue("showSweet") === "yes");
+  setVisible("productAddonSettings",enabled && getValue("showAddon") === "yes");
+  setVisible("productNoteSettings",enabled && getValue("showNote") === "yes");
+}
+
+function showProductPhotoPreview(url){
+  const preview = $("productImagePreview");
+  if(!preview) return;
+  preview.onerror = ()=>{
+    preview.onerror = null;
+    preview.src = "./logo.png";
+  };
+  preview.src = url || "./logo.png";
+}
+
+function resetProductImageEditor(product={}){
+  pendingImageFile = null;
+  removeCurrentImage = false;
+  editingImageUrl = String(product.image || product.imageUrl || "");
+  editingImagePath = String(product.imagePath || "");
+  setValue("image",editingImageUrl);
+  setValue("imagePath",editingImagePath);
+  if($("productImageFile")) $("productImageFile").value = "";
+  setText("imageUploadStatus",editingImageUrl
+    ? "Current photo will be kept unless you choose a new one or remove it."
+    : "Choose a photo. It will be compressed and uploaded when you save.");
+  showProductPhotoPreview(editingImageUrl || "./logo.png");
+}
+
+function safeFileName(value){
+  return String(value || "product")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g,"-")
+    .replace(/-+/g,"-")
+    .slice(0,80);
+}
+
+async function compressProductImage(file){
+  if(!file.type.startsWith("image/")){
+    throw new Error("Please choose an image file.");
+  }
+
+  if(file.size > 12 * 1024 * 1024){
+    throw new Error("Photo is too large. Maximum size is 12MB.");
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try{
+    const image = await new Promise((resolve,reject)=>{
+      const img = new Image();
+      img.onload = ()=>resolve(img);
+      img.onerror = ()=>reject(new Error("Unable to read this photo."));
+      img.src = objectUrl;
+    });
+
+    const maxSide = 1600;
+    const scale = Math.min(1,maxSide / Math.max(image.naturalWidth,image.naturalHeight));
+    const width = Math.max(1,Math.round(image.naturalWidth * scale));
+    const height = Math.max(1,Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    context.drawImage(image,0,0,width,height);
+
+    const blob = await new Promise(resolve=>
+      canvas.toBlob(resolve,"image/jpeg",0.84)
+    );
+
+    if(!blob) throw new Error("Unable to prepare this photo.");
+    return blob;
+  }finally{
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function uploadProductPhoto(file,productId){
+  const blob = await compressProductImage(file);
+  const path = `product-images/${productId}/${Date.now()}-${safeFileName(file.name)}.jpg`;
+  const ref = storageRef(storage,path);
+  await uploadBytes(ref,blob,{contentType:"image/jpeg"});
+  return {
+    image:await getDownloadURL(ref),
+    imagePath:path
+  };
+}
+
+async function deleteStoredPhoto(path){
+  if(!path) return;
+  try{
+    await deleteObject(storageRef(storage,path));
+  }catch(error){
+    console.warn("Unable to delete old product photo",error);
+  }
+}
+
+
 // ---------- PRODUCTS ----------
 
 async function loadProducts(){
 
-  const snapshot =
-    await getDocs(collection(db,"products"));
+  const snapshot = await getDocs(collection(db,"products"));
+  const productList = [];
 
-  let productList = [];
-
-  snapshot.forEach((docSnap)=>{
-
-    productList.push({
-      id: docSnap.id,
-      ...docSnap.data()
-    });
-
+  snapshot.forEach(docSnap=>{
+    productList.push({id:docSnap.id,...docSnap.data()});
   });
 
-  productList.sort((a,b)=>{
+  productList.sort((a,b)=>
+    Number(a.sort ?? 9999999999999) - Number(b.sort ?? 9999999999999)
+  );
 
-    const sortA =
-      Number(a.sort ?? 9999999999999);
+  productCache = new Map(productList.map(product=>[product.id,product]));
 
-    const sortB =
-      Number(b.sort ?? 9999999999999);
-
-    return sortA - sortB;
-
+  const visibleProducts = productList.filter(product=>{
+    const category = String(product.category || "").toLowerCase();
+    return currentCategory === "all" || category === currentCategory;
   });
 
-  let html = "";
+  const html = visibleProducts.map(product=>{
+    const price = Number(product.price) || 0;
+    const available = product.available !== false;
+    const image = product.image || product.imageUrl || product.photo || "./logo.png";
 
-  productList.forEach((p)=>{
-
-    const category =
-      String(p.category || "")
-      .toLowerCase();
-
-    if(
-      currentCategory !== "all"
-      &&
-      category !== currentCategory
-    ){
-      return;
-    }
-
-    const price =
-      Number(p.price) || 0;
-
-    html += `
-
-      <div
-        class="card"
-        data-id="${escapeHTML(p.id)}"
-        data-name="${escapeHTML(p.name || "")}"
-        data-price="${price}"
-        data-category="${escapeHTML(p.category || "")}"
-        data-modifier="${p.modifierEnabled ? "yes" : "no"}"
-        data-default-milk="${escapeHTML(p.defaultMilk || "")}"
-        data-default-ice="${escapeHTML(p.defaultIce || "")}"
-        data-default-sweet="${escapeHTML(p.defaultSweet || "")}"
-        data-default-addon="${escapeHTML(p.defaultAddon || "0")}"
-        data-default-note="${escapeHTML(p.defaultNote || "")}"
-      >
-
+    return `
+      <div class="card ${available ? "" : "sold-out"}" data-id="${escapeHTML(product.id)}">
+        ${available ? "" : '<div class="sold-out-badge">Sold Out</div>'}
         <img
-          src="${escapeHTML(p.image || "./logo.png")}"
+          src="${escapeHTML(image)}"
+          alt="${escapeHTML(product.name || "")}" 
+          loading="lazy"
+          onerror="this.onerror=null;this.src='./logo.png';"
         >
-
         <div class="card-body">
-
-          <div class="drag-handle">
-            ☰
-          </div>
-
-          <div class="name">
-            ${escapeHTML(p.name || "")}
-          </div>
-
-          <div class="price">
-            ${escapeHTML(p.category || "Menu")} · RM ${price}
-          </div>
-
+          <div class="drag-handle">☰</div>
+          <div class="name">${escapeHTML(product.name || "")}</div>
+          <div class="price">${escapeHTML(product.category || "Menu")} · RM ${money(price)}</div>
           <div class="actions">
-
-            <button
-              class="small-btn edit"
-              data-id="${escapeHTML(p.id)}"
-              data-name="${escapeHTML(p.name || "")}"
-              data-price="${price}"
-              data-category="${escapeHTML(p.category || "")}"
-              data-image="${escapeHTML(p.image || "")}"
-              data-modifier="${p.modifierEnabled ? "yes" : "no"}"
-              data-default-milk="${escapeHTML(p.defaultMilk || "")}"
-              data-default-ice="${escapeHTML(p.defaultIce || "")}"
-              data-default-sweet="${escapeHTML(p.defaultSweet || "")}"
-              data-default-addon="${escapeHTML(p.defaultAddon || "0")}"
-              data-default-note="${escapeHTML(p.defaultNote || "")}"
-            >
-              Edit
-            </button>
-
-            <button
-              class="small-btn delete"
-              data-delete="${escapeHTML(p.id)}"
-            >
-              Delete
-            </button>
-
+            <button class="small-btn edit" data-id="${escapeHTML(product.id)}">Edit</button>
+            <button class="small-btn delete" data-delete="${escapeHTML(product.id)}">Delete</button>
           </div>
-
         </div>
-
       </div>
-
     `;
+  }).join("");
 
-  });
-
-  setHTML("products",html);
-
+  setHTML("products",html || '<div class="card-box">No products found.</div>');
   bindProductClicks();
   bindProductActions();
   initSortable();
-
 }
 
+function openStaffModifier(product){
+  const config = getProductModifierConfig(product);
+
+  if(!config.enabled){
+    addPlainCartItem(product.name,Number(product.price) || 0);
+    return;
+  }
+
+  selectedProduct = product;
+  setText("modifierTitle",product.name || "Product");
+
+  setVisible("staffMilkGroup",config.showMilk);
+  setVisible("staffIceGroup",config.showIce);
+  setVisible("staffSweetGroup",config.showSweet);
+  setVisible("staffAddonGroup",config.showAddon);
+  setVisible("staffNoteGroup",config.showNote);
+
+  populateSelect("milkSelect",config.milkOptions,config.showMilk ? product.defaultMilk || "" : "");
+  populateSelect("iceSelect",config.iceOptions,config.showIce ? product.defaultIce || "" : "");
+  populateSelect("sweetSelect",config.sweetOptions,config.showSweet ? product.defaultSweet || "" : "");
+  populateSelect("addonSelect",config.addonOptions,config.showAddon ? product.defaultAddon || "0" : "0");
+  setValue("noteInput",config.showNote ? product.defaultNote || "" : "");
+
+  const hasVisibleFields = config.showMilk || config.showIce || config.showSweet || config.showAddon || config.showNote;
+  if(!hasVisibleFields){
+    addPlainCartItem(product.name,Number(product.price) || 0);
+    selectedProduct = null;
+    return;
+  }
+
+  show("modifierModal");
+}
 
 function bindProductClicks(){
-
-  document.querySelectorAll(".card")
-  .forEach((card)=>{
-
-    card.addEventListener("click",(e)=>{
-
+  document.querySelectorAll(".card").forEach(card=>{
+    card.addEventListener("click",event=>{
       if(
-        e.target.classList.contains("edit")
-        ||
-        e.target.classList.contains("delete")
-        ||
-        e.target.classList.contains("drag-handle")
-      ){
+        event.target.classList.contains("edit") ||
+        event.target.classList.contains("delete") ||
+        event.target.classList.contains("drag-handle")
+      ) return;
+
+      const product = productCache.get(card.dataset.id);
+      if(!product) return;
+
+      if(product.available === false){
+        alert("This product is marked Sold Out.");
         return;
       }
 
-      const name =
-        card.dataset.name;
-
-      const price =
-        Number(card.dataset.price) || 0;
-
-      const modifierEnabled =
-        card.dataset.modifier === "yes";
-
-      if(modifierEnabled){
-
-        selectedProduct = {
-          name,
-          price
-        };
-
-        setText("modifierTitle",name);
-
-setValue(
-  "milkSelect",
-  card.dataset.defaultMilk || ""
-);
-
-setValue(
-  "iceSelect",
-  card.dataset.defaultIce || ""
-);
-
-setValue(
-  "sweetSelect",
-  card.dataset.defaultSweet || ""
-);
-
-        setValue(
-          "addonSelect",
-          card.dataset.defaultAddon || "0"
-        );
-
-        setValue(
-          "noteInput",
-          card.dataset.defaultNote || ""
-        );
-
-        show("modifierModal");
-
-      }else{
-
-        addPlainCartItem(name,price);
-
-      }
-
+      openStaffModifier(product);
     });
-
   });
-
 }
-
 
 function bindProductActions(){
+  document.querySelectorAll("[data-delete]").forEach(button=>{
+    button.addEventListener("click",async()=>{
+      const product = productCache.get(button.dataset.delete);
+      if(!product || !confirm("Delete this product?")) return;
 
-  document.querySelectorAll("[data-delete]")
-  .forEach(btn=>{
-
-    btn.addEventListener("click",async()=>{
-
-      const ok =
-        confirm("Delete this product?");
-
-      if(!ok) return;
-
-      await deleteDoc(
-        doc(db,"products",btn.dataset.delete)
-      );
-
+      await deleteDoc(doc(db,"products",product.id));
+      await deleteStoredPhoto(product.imagePath || "");
       loadProducts();
-
     });
-
   });
 
+  document.querySelectorAll(".edit").forEach(button=>{
+    button.addEventListener("click",()=>{
+      const product = productCache.get(button.dataset.id);
+      if(!product) return;
 
-  document.querySelectorAll(".edit")
-  .forEach(btn=>{
+      editingId = product.id;
+      const config = getProductModifierConfig(product);
 
-    btn.addEventListener("click",()=>{
-
-      editingId =
-        btn.dataset.id;
-
-      setText(
-        "productModalTitle",
-        "Edit Product"
-      );
-
-      setValue("name",btn.dataset.name);
-      setValue("price",btn.dataset.price);
-      setValue("category",btn.dataset.category);
-      setValue("image",btn.dataset.image);
-
+      setText("productModalTitle","Edit Product");
+      setValue("name",product.name || "");
+      setValue("price",Number(product.price) || 0);
+      const productCategory = String(product.category || "other").toLowerCase();
       setValue(
-        "modifierEnabled",
-        btn.dataset.modifier || "no"
+        "category",
+        ["matcha","espresso","basque","mousse","other"].includes(productCategory)
+          ? productCategory
+          : "other"
       );
+      setValue("productAvailable",product.available === false ? "no" : "yes");
+      setValue("modifierEnabled",config.enabled ? "yes" : "no");
+      setValue("showMilk",config.showMilk ? "yes" : "no");
+      setValue("showIce",config.showIce ? "yes" : "no");
+      setValue("showSweet",config.showSweet ? "yes" : "no");
+      setValue("showAddon",config.showAddon ? "yes" : "no");
+      setValue("showNote",config.showNote ? "yes" : "no");
 
-      setValue(
-        "defaultMilk",
-        btn.dataset.defaultMilk || ""
-      );
+      populateSelect("defaultMilk",config.milkOptions,product.defaultMilk || "");
+      populateSelect("defaultIce",config.iceOptions,product.defaultIce || "");
+      populateSelect("defaultSweet",config.sweetOptions,product.defaultSweet || "");
+      populateSelect("defaultAddon",config.addonOptions,product.defaultAddon || "0");
+      setValue("defaultNote",product.defaultNote || "");
 
-      setValue(
-        "defaultIce",
-        btn.dataset.defaultIce || ""
-      );
-
-      setValue(
-        "defaultSweet",
-        btn.dataset.defaultSweet || ""
-      );
-
-      setValue(
-        "defaultAddon",
-        btn.dataset.defaultAddon || "0"
-      );
-
-      setValue(
-        "defaultNote",
-        btn.dataset.defaultNote || ""
-      );
-
+      resetProductImageEditor(product);
+      syncProductSettingsVisibility();
       show("productModal");
-
     });
-
   });
-
 }
-
 
 function initSortable(){
 
@@ -681,70 +803,39 @@ function renderCart(){
 // ---------- MODIFIER ----------
 
 if($("addModifierBtn")){
+  $("addModifierBtn").addEventListener("click",()=>{
+    if(!selectedProduct) return;
 
-  $("addModifierBtn")
-  .addEventListener("click",()=>{
+    const config = getProductModifierConfig(selectedProduct);
+    const milk = config.showMilk ? getValue("milkSelect") : "";
+    const ice = config.showIce ? getValue("iceSelect") : "";
+    const sweet = config.showSweet ? getValue("sweetSelect") : "";
+    const note = config.showNote ? getValue("noteInput").trim().slice(0,200) : "";
 
-    if(!selectedProduct){
-      return;
-    }
+    const addonSelect = $("addonSelect");
+    const selectedAddonOption = config.showAddon && addonSelect
+      ? addonSelect.selectedOptions[0]
+      : null;
+    const addonCode = selectedAddonOption ? selectedAddonOption.value : "0";
+    const addonPrice = selectedAddonOption ? Number(selectedAddonOption.dataset.price) || 0 : 0;
+    const addonName = selectedAddonOption ? selectedAddonOption.text.trim() : "None";
+    const finalPrice = (Number(selectedProduct.price) || 0) + addonPrice;
 
-    const milk =
-      getValue("milkSelect");
-
-    const ice =
-      getValue("iceSelect");
-
-    const sweet =
-      getValue("sweetSelect");
-
-    const addonPrice =
-      Number(getValue("addonSelect")) || 0;
-
-    const addonSelect =
-      $("addonSelect");
-
-    const addonName =
-      addonSelect
-      ?
-      addonSelect.selectedOptions[0].text.trim()
-      :
-      "None";
-
-    const note =
-      getValue("noteInput");
-
-    const finalPrice =
-      (Number(selectedProduct.price) || 0)
-      +
-      addonPrice;
-
-    const existing =
-      cart.find(i=>
-
-        i.name === selectedProduct.name
-        &&
-        i.milk === milk
-        &&
-        i.ice === ice
-        &&
-        i.sweet === sweet
-        &&
-        i.addon === addonName
-        &&
-        i.note === note
-        &&
-        Number(i.price) === Number(finalPrice)
-
-      );
+    const existing = cart.find(item=>
+      item.productId === selectedProduct.id &&
+      item.milk === milk &&
+      item.ice === ice &&
+      item.sweet === sweet &&
+      item.addonCode === addonCode &&
+      item.note === note &&
+      Number(item.price) === Number(finalPrice)
+    );
 
     if(existing){
-
       existing.qty += 1;
-
     }else{
-
       cart.push({
+        productId:selectedProduct.id,
         name:selectedProduct.name,
         price:finalPrice,
         qty:1,
@@ -752,162 +843,185 @@ if($("addModifierBtn")){
         ice,
         sweet,
         addon:addonName,
+        addonCode,
         note
       });
-
     }
 
+    selectedProduct = null;
     renderCart();
-
     hide("modifierModal");
-
   });
-
 }
 
 
 // ---------- PRODUCT MODAL + SAVE PRODUCT ----------
 
-if($("openProductBtn")){
-
-  $("openProductBtn")
-  .addEventListener("click",()=>{
-
-    editingId = null;
-
-    setText(
-      "productModalTitle",
-      "Add Product"
-    );
-
-    setValue("name","");
-    setValue("price","");
-    setValue("category","");
-    setValue("image","");
-
-    setValue("modifierEnabled","no");
-    setValue("defaultMilk","");
-    setValue("defaultIce","");
-    setValue("defaultSweet","");
-    setValue("defaultAddon","0");
-    setValue("defaultNote","");
-
-    show("productModal");
-
-  });
-
+function prepareNewProductForm(){
+  editingId = null;
+  setText("productModalTitle","Add Product");
+  setValue("name","");
+  setValue("price","");
+  setValue("category","matcha");
+  setValue("productAvailable","yes");
+  setValue("modifierEnabled","no");
+  setValue("showMilk","yes");
+  setValue("showIce","yes");
+  setValue("showSweet","yes");
+  setValue("showAddon","yes");
+  setValue("showNote","yes");
+  populateSelect("defaultMilk",DEFAULT_MODIFIER_OPTIONS.milk,"");
+  populateSelect("defaultIce",DEFAULT_MODIFIER_OPTIONS.ice,"");
+  populateSelect("defaultSweet",DEFAULT_MODIFIER_OPTIONS.sweet,"");
+  populateSelect("defaultAddon",DEFAULT_MODIFIER_OPTIONS.addon,"0");
+  setValue("defaultNote","");
+  resetProductImageEditor({});
+  syncProductSettingsVisibility();
 }
 
+if($("openProductBtn")){
+  $("openProductBtn").addEventListener("click",()=>{
+    prepareNewProductForm();
+    show("productModal");
+  });
+}
 
 if($("closeProductBtn")){
-
-  $("closeProductBtn")
-  .addEventListener("click",()=>{
-
-    hide("productModal");
-
-  });
-
+  $("closeProductBtn").addEventListener("click",()=>hide("productModal"));
 }
 
+["modifierEnabled","showMilk","showIce","showSweet","showAddon","showNote"].forEach(id=>{
+  if($(id)) $(id).addEventListener("change",syncProductSettingsVisibility);
+});
+
+if($("productImageFile")){
+  $("productImageFile").addEventListener("change",event=>{
+    const file = event.target.files?.[0] || null;
+    pendingImageFile = file;
+    removeCurrentImage = false;
+
+    if(!file){
+      showProductPhotoPreview(editingImageUrl || "./logo.png");
+      return;
+    }
+
+    if(!file.type.startsWith("image/")){
+      alert("Please choose an image file.");
+      event.target.value = "";
+      pendingImageFile = null;
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    showProductPhotoPreview(previewUrl);
+    setText("imageUploadStatus",`${file.name} selected. Photo will upload when you save.`);
+    setTimeout(()=>URL.revokeObjectURL(previewUrl),10000);
+  });
+}
+
+if($("removeProductImageBtn")){
+  $("removeProductImageBtn").addEventListener("click",()=>{
+    pendingImageFile = null;
+    removeCurrentImage = true;
+    if($("productImageFile")) $("productImageFile").value = "";
+    setValue("image","");
+    setValue("imagePath","");
+    showProductPhotoPreview("./logo.png");
+    setText("imageUploadStatus","Photo will be removed when you save.");
+  });
+}
 
 if($("saveBtn")){
+  $("saveBtn").addEventListener("click",async()=>{
+    const name = getValue("name").trim();
+    const price = Number(getValue("price"));
+    const category = getValue("category").trim().toLowerCase();
 
-  $("saveBtn")
-  .addEventListener("click",async()=>{
-
-    const name =
-      getValue("name").trim();
-
-    const price =
-      Number(getValue("price"));
-
-    const category =
-      getValue("category").trim();
-
-    const image =
-      getValue("image").trim();
-
-    const modifierEnabled =
-      getValue("modifierEnabled") === "yes";
-
-    const defaultMilk =
-      getValue("defaultMilk");
-
-    const defaultIce =
-      getValue("defaultIce");
-
-    const defaultSweet =
-      getValue("defaultSweet");
-
-    const defaultAddon =
-      getValue("defaultAddon") || "0";
-
-    const defaultNote =
-      getValue("defaultNote");
-
-    if(
-      !name
-      ||
-      isNaN(price)
-    ){
-
-      alert("请填完整商品名称和价格");
-
+    if(!name || !Number.isFinite(price) || price < 0){
+      alert("请填写正确的商品名称和价格");
       return;
-
     }
 
-    const productData = {
-      name,
-      price,
-      category,
-      image,
-      modifierEnabled,
-      defaultMilk,
-      defaultIce,
-      defaultSweet,
-      defaultAddon,
-      defaultNote
-    };
+    const button = $("saveBtn");
+    button.disabled = true;
+    button.innerText = pendingImageFile ? "Uploading Photo..." : "Saving...";
 
-    if(editingId){
+    const productRef = editingId
+      ? doc(db,"products",editingId)
+      : doc(collection(db,"products"));
 
-      await updateDoc(
-        doc(db,"products",editingId),
-        productData
-      );
+    let nextImage = removeCurrentImage ? "" : editingImageUrl;
+    let nextImagePath = removeCurrentImage ? "" : editingImagePath;
+    let uploadedNewPath = "";
 
+    try{
+      if(pendingImageFile){
+        const uploaded = await uploadProductPhoto(pendingImageFile,productRef.id);
+        nextImage = uploaded.image;
+        nextImagePath = uploaded.imagePath;
+        uploadedNewPath = uploaded.imagePath;
+      }
+
+      const modifierEnabled = getValue("modifierEnabled") === "yes";
+      const showMilk = modifierEnabled && getValue("showMilk") === "yes";
+      const showIce = modifierEnabled && getValue("showIce") === "yes";
+      const showSweet = modifierEnabled && getValue("showSweet") === "yes";
+      const showAddon = modifierEnabled && getValue("showAddon") === "yes";
+      const showNote = modifierEnabled && getValue("showNote") === "yes";
+
+      const productData = {
+        name,
+        price,
+        category,
+        image:nextImage,
+        imagePath:nextImagePath,
+        available:getValue("productAvailable") !== "no",
+        modifierEnabled,
+        showMilk,
+        showIce,
+        showSweet,
+        showAddon,
+        showNote,
+        defaultMilk:showMilk ? getValue("defaultMilk") : "",
+        defaultIce:showIce ? getValue("defaultIce") : "",
+        defaultSweet:showSweet ? getValue("defaultSweet") : "",
+        defaultAddon:showAddon ? getValue("defaultAddon") || "0" : "0",
+        defaultNote:showNote ? getValue("defaultNote").trim().slice(0,200) : "",
+        milkOptions:DEFAULT_MODIFIER_OPTIONS.milk,
+        iceOptions:DEFAULT_MODIFIER_OPTIONS.ice,
+        sweetOptions:DEFAULT_MODIFIER_OPTIONS.sweet,
+        addonOptions:DEFAULT_MODIFIER_OPTIONS.addon,
+        updatedAt:serverTimestamp()
+      };
+
+      if(!editingId){
+        productData.sort = Date.now();
+        productData.createdAt = serverTimestamp();
+      }
+
+      await setDoc(productRef,productData,{merge:true});
+
+      if(
+        editingImagePath &&
+        editingImagePath !== nextImagePath &&
+        (uploadedNewPath || removeCurrentImage)
+      ){
+        await deleteStoredPhoto(editingImagePath);
+      }
+
+      alert(editingId ? "Updated ✅" : "Added ✅");
       editingId = null;
-
-      alert("Updated ✅");
-
-    }else{
-
-      await addDoc(
-        collection(db,"products"),
-        {
-          ...productData,
-          sort: Date.now()
-        }
-      );
-
-      alert("Added ✅");
-
+      hide("productModal");
+      await loadProducts();
+    }catch(error){
+      console.error(error);
+      if(uploadedNewPath) await deleteStoredPhoto(uploadedNewPath);
+      alert(error.message || "Unable to save this product.");
+    }finally{
+      button.disabled = false;
+      button.innerText = "Save Product";
     }
-
-    setValue("name","");
-    setValue("price","");
-    setValue("category","");
-    setValue("image","");
-    setValue("defaultNote","");
-
-    hide("productModal");
-
-    loadProducts();
-
   });
-
 }
 
 
@@ -1899,21 +2013,6 @@ if($("closeMonthlyBtn")){
 
 // ---------- SECURE QR PENDING ORDERS ----------
 
-const QR_ADDONS = {
-  "0":{
-    name:"None",
-    price:0
-  },
-  "3":{
-    name:"Extra Shot +RM3",
-    Price:3
-  },
-  "6":{
-    name:"Extra Double Shot +RM6",
-    Price:6
-  }
-};
-
 
 function startPendingOrdersListener(){
 
@@ -2277,34 +2376,33 @@ async function(id){
               )
             );
 
-          const addonCode =
-            String(
-              item.addonCode || "0"
-            );
+          const config = getProductModifierConfig(product);
+          const requestedAddonCode = String(item.addonCode || "0");
+          const addon = config.showAddon
+            ? config.addonOptions.find(option=>String(option.value) === requestedAddonCode)
+              || config.addonOptions.find(option=>Number(option.price) === 0)
+              || {value:"0",label:"None",price:0}
+            : {value:"0",label:"None",price:0};
 
-          const addon =
-            QR_ADDONS[addonCode]
-            ||
-            QR_ADDONS["0"];
+          const allowedValue = (value,options,enabled)=>{
+            if(!enabled) return "";
+            const text = String(value || "").slice(0,40);
+            return options.some(option=>String(option.value) === text) ? text : "";
+          };
 
-          const unitPrice =
-            (
-              Number(product.price) || 0
-            )
-            +
-            addon.price;
+          const unitPrice = (Number(product.price) || 0) + (Number(addon.price) || 0);
 
           officialItems.push({
             productId:productSnap.id,
             name:product.name || "Product",
             price:unitPrice,
             qty:quantity,
-            milk:String(item.milk || "").slice(0,40),
-            ice:String(item.ice || "").slice(0,40),
-            sweet:String(item.sweet || "").slice(0,40),
-            addon:addon.name,
-            addonCode,
-            note:String(item.note || "").slice(0,200)
+            milk:allowedValue(item.milk,config.milkOptions,config.showMilk),
+            ice:allowedValue(item.ice,config.iceOptions,config.showIce),
+            sweet:allowedValue(item.sweet,config.sweetOptions,config.showSweet),
+            addon:addon.label,
+            addonCode:String(addon.value),
+            note:config.showNote ? String(item.note || "").slice(0,200) : ""
           });
 
           subtotal +=
