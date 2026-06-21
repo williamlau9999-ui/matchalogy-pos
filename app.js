@@ -1822,7 +1822,7 @@ if($("closeDayBtn")){
 
     alert("今日账目已成功关闭结清 ✅");
     loadClosingHistory();
-    loadDashboard(); // 顺便刷新主面板数据
+    loadDashboard();
   });
 }
 
@@ -1862,12 +1862,10 @@ async function loadClosingHistory(){
   closings.sort((a,b)=> toDate(b.time) - toDate(a.time));
   allClosings = closings;
 
-  // 1. 核心改进：聚合更全面的月度总数据
   let monthData = {};
   closings.forEach(c=>{
     const date = toDate(c.time);
     const monthKey = `${date.toLocaleString("default",{ month:"long" })} ${date.getFullYear()}`;
-    // 建立一个标准格式，为快捷报表生成做准备
     const inputFormat = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
     if(!monthData[monthKey]){
@@ -1876,7 +1874,6 @@ async function loadClosingHistory(){
     monthData[monthKey].total += Number(c.revenue) || 0;
   });
 
-  // 2. 渲染动态的 Monthly Revenue 区域，并为其注入一键查看月度报表的快捷动作
   let monthHTML = "";
   Object.entries(monthData).forEach(([month, data])=>{
     monthHTML += `
@@ -1897,7 +1894,6 @@ async function loadClosingHistory(){
   setHTML("closingHistory", renderClosingCards(closings));
 }
 
-// 提供快捷卡片点击触发生成月报表
 window.quickViewMonthlyReport = function(monthValue) {
   if($("reportMonth")) {
     $("reportMonth").value = monthValue;
@@ -1924,9 +1920,8 @@ window.deleteClosing = async function(id){
   loadClosingHistory();
 };
 
-// 3. 增强版月度深度报表生成系统
 async function generateMonthlyReport(){
-  const monthValue = getValue("reportMonth"); // 格式: "2026-06"
+  const monthValue = getValue("reportMonth");
   if(!monthValue){
     setHTML("monthlyReportContent", "<p style='color:#777;'>请先选择需要查询的月份。</p>");
     return;
@@ -1967,7 +1962,6 @@ async function generateMonthlyReport(){
   const sortedProducts = Object.entries(topProducts)
     .sort((a,b)=> b[1] - a[1]);
 
-  // 生成漂亮的内部内容，方便打印和浏览
   $("monthlyReportContent").innerHTML = `
     <div style="border:1px solid #ddd; padding:15px; border-radius:6px; background:#fafafa;">
       <h4 style="margin:0 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">📊 财务总览 (Financial Summary)</h4>
@@ -1997,7 +1991,6 @@ async function generateMonthlyReport(){
   `;
 }
 
-// 4. 核心新增：一键纯净导出 PDF / 打印报表功能
 window.exportMonthlyReportToPDF = function() {
   const reportContent = $("monthlyReportContent").innerHTML;
   const monthValue = getValue("reportMonth");
@@ -2007,7 +2000,6 @@ window.exportMonthlyReportToPDF = function() {
     return;
   }
 
-  // 创建一个纯净的隐藏/新打印窗口，隔绝 POS 界面的其他杂乱按钮
   const printWindow = window.open("", "_blank");
   printWindow.document.write(`
     <!DOCTYPE html>
@@ -2044,7 +2036,6 @@ window.exportMonthlyReportToPDF = function() {
       <script>
         window.onload = function() {
           window.print();
-          // 打印对话框关闭后自动关闭该纯净标签页
           setTimeout(() => { window.close(); }, 500);
         };
       <\/script>
@@ -2054,7 +2045,6 @@ window.exportMonthlyReportToPDF = function() {
   printWindow.document.close();
 };
 
-// 绑定相关事件监听器
 if($("monthlyRevenueCard")){
   $("monthlyRevenueCard").addEventListener("click",()=>{
     show("monthlyReportModal");
@@ -2065,13 +2055,276 @@ if($("reportMonth")){
   $("reportMonth").addEventListener("change", generateMonthlyReport);
 }
 
-// 5. 如果你的 HTML 里面增加了关闭或者导出按钮，可以在这里初始化挂载
 if($("closeMonthlyReportBtn")){
   $("closeMonthlyReportBtn").addEventListener("click", () => hide("monthlyReportModal"));
 }
 
 if($("exportReportBtn")){
   $("exportReportBtn").addEventListener("click", window.exportMonthlyReportToPDF);
+}
+
+
+// ---------- SECURE QR PENDING ORDERS ----------
+
+function startPendingOrdersListener(){
+  if(pendingUnsubscribe){
+    pendingUnsubscribe();
+  }
+
+  pendingUnsubscribe =
+    onSnapshot(
+      collection(db,"pendingOrders"),
+      snapshot=>{
+        const pendingList = [];
+        snapshot.forEach(docSnap=>{
+          const order = docSnap.data();
+          if(order.status === "pending"){
+            pendingList.push({
+              id:docSnap.id,
+              ...order
+            });
+          }
+        });
+
+        pendingList.sort((a,b)=> toDate(b.createdAt) - toDate(a.createdAt));
+        renderPendingOrders(pendingList);
+      },
+      error=>{
+        console.error(error);
+        setHTML("pendingOrdersList", "<p>Unable to load QR orders.</p>");
+      }
+    );
+}
+
+function renderPendingOrders(list){
+  setText("pendingOrderCount", list.length);
+  let html = "";
+
+  list.forEach(order=>{
+    const itemsHTML = (order.items || []).map(item=>`
+        <div>
+          <strong>
+            ${escapeHTML(item.nameSnapshot || "Product")} x${Number(item.qty) || 1}
+          </strong>
+          ${item.milk || item.ice || item.sweet ? `
+              <small><br>${[item.milk, item.ice, item.sweet].filter(Boolean).map(escapeHTML).join(" · ")}</small>
+            ` : ""}
+          ${item.addonName && item.addonName !== "None" ? `
+              <small><br>${escapeHTML(item.addonName)}</small>
+            ` : ""}
+          ${item.note ? `
+              <small><br>Note: ${escapeHTML(item.note)}</small>
+            ` : ""}
+        </div>
+      `).join("");
+
+    html += `
+      <div class="pending-order-card">
+        <div class="pending-order-header">
+          <span>${escapeHTML(order.customerOrderNo || "QR")}</span>
+          <span>Est. RM ${money(order.estimatedTotal)}</span>
+        </div>
+        <div class="pending-customer">
+          Pickup: <strong>${escapeHTML(order.customerName || "")}</strong>
+          ${order.customerPhone ? `<br>Phone: ${escapeHTML(order.customerPhone)}` : ""}
+        </div>
+        <div class="pending-items">
+          ${itemsHTML}
+        </div>
+        ${order.note ? `
+            <div class="pending-customer">Order Note: ${escapeHTML(order.note)}</div>
+          ` : ""}
+        <div class="pending-actions">
+          <button onclick="acceptPendingOrder('${order.id}')">Accept & Pay</button>
+          <button class="reject-pending-btn" onclick="rejectPendingOrder('${order.id}')">Reject</button>
+        </div>
+      </div>
+    `;
+  });
+
+  setHTML("pendingOrdersList", html || "<p>No pending QR orders.</p>");
+}
+
+window.acceptPendingOrder = async function(id){
+  const payment = prompt("Payment Method: Cash / TNG / Shopee", "TNG");
+  if(payment === null){ return; }
+
+  const allowedPayments = ["Cash", "TNG", "Shopee"];
+  if(!allowedPayments.includes(payment)){
+    alert("Please enter Cash, TNG or Shopee.");
+    return;
+  }
+
+  const pendingRef = doc(db,"pendingOrders",id);
+  const officialOrderRef = doc(collection(db,"orders"));
+  const orderNo = Date.now().toString().slice(-6);
+
+  try{
+    await runTransaction(db, async transaction=>{
+        const pendingSnap = await transaction.get(pendingRef);
+        if(!pendingSnap.exists()){ throw new Error("QR order no longer exists."); }
+
+        const pending = pendingSnap.data();
+        if(pending.status !== "pending"){ throw new Error("This order has already been handled."); }
+
+        const pendingItems = pending.items || [];
+        if(pendingItems.length === 0 || pendingItems.length > 30){ throw new Error("Invalid QR order."); }
+
+        const officialItems = [];
+        let subtotal = 0;
+
+        for(const item of pendingItems){
+          const productRef = doc(db, "products", String(item.productId));
+          const productSnap = await transaction.get(productRef);
+
+          if(!productSnap.exists()){ throw new Error("A product is no longer available."); }
+          const product = productSnap.data();
+          if(product.available === false){ throw new Error(`${product.name} is sold out.`); }
+
+          const quantity = Math.min(20, Math.max(1, Number(item.qty) || 1));
+          const config = getProductModifierConfig(product);
+          const requestedAddonCode = String(item.addonCode || "0");
+          const addon = config.showAddon
+            ? config.addonOptions.find(option=>String(option.value) === requestedAddonCode) || config.addonOptions.find(option=>Number(option.price) === 0) || {value:"0",label:"None",price:0}
+            : {value:"0",label:"None",price:0};
+
+          const allowedValue = (value,options,enabled)=>{
+            if(!enabled) return "";
+            const text = String(value || "").slice(0,40);
+            return options.some(option=>String(option.value) === text) ? text : "";
+          };
+
+          const unitPrice = (Number(product.price) || 0) + (Number(addon.price) || 0);
+
+          officialItems.push({
+            productId:productSnap.id,
+            name:product.name || "Product",
+            price:unitPrice,
+            qty:quantity,
+            milk:allowedValue(item.milk,config.milkOptions,config.showMilk),
+            ice:allowedValue(item.ice,config.iceOptions,config.showIce),
+            sweet:allowedValue(item.sweet,config.sweetOptions,config.showSweet),
+            addon:addon.label,
+            addonCode:String(addon.value),
+            note:config.showNote ? String(item.note || "").slice(0,200) : ""
+          });
+
+          subtotal += unitPrice * quantity;
+        }
+
+        transaction.set(officialOrderRef, {
+            orderNo,
+            items:officialItems,
+            subtotal,
+            discount:0,
+            total:subtotal,
+            payment,
+            note: String(pending.note || "").slice(0,300),
+            source:"QR",
+            customerName: String(pending.customerName || "").slice(0,50),
+            customerPhone: String(pending.customerPhone || "").slice(0,30),
+            customerOrderNo: pending.customerOrderNo || "",
+            time: serverTimestamp()
+        });
+
+        transaction.update(pendingRef, {
+            status:"accepted",
+            payment,
+            acceptedAt: serverTimestamp(),
+            officialOrderNo: orderNo,
+            officialOrderId: officialOrderRef.id,
+            finalTotal: subtotal
+        });
+    });
+
+    alert(`QR order accepted ✅\nOrder #${orderNo}`);
+    loadDashboard();
+
+  }catch(error){
+    console.error(error);
+    alert(error.message || "Unable to accept this order.");
+  }
+}
+
+window.rejectPendingOrder = async function(id){
+  const reason = prompt("Reason for rejection", "Item unavailable");
+  if(reason === null){ return; }
+
+  await updateDoc(doc(db,"pendingOrders",id), {
+      status:"rejected",
+      rejectReason: String(reason).slice(0,200),
+      rejectedAt: serverTimestamp()
+  });
+}
+
+// ---------- STORE OPEN / CLOSED ----------
+
+let storeOpenState = true;
+
+function renderStoreStatusButton(){
+  const button = $("storeStatusBtn");
+  if(!button){ return; }
+
+  button.classList.remove("store-open", "store-closed");
+
+  if(storeOpenState){
+    button.classList.add("store-open");
+    button.innerText = "Store: Open";
+  }else{
+    button.classList.add("store-closed");
+    button.innerText = "Store: Closed";
+  }
+}
+
+async function loadStoreStatus(){
+  try{
+    const snapshot = await getDoc(doc(db,"settings","store"));
+    if(snapshot.exists()){
+      storeOpenState = snapshot.data().open !== false;
+    }else{
+      storeOpenState = true;
+    }
+    renderStoreStatusButton();
+  }catch(error){
+    console.error(error);
+    const button = $("storeStatusBtn");
+    if(button){ button.innerText = "Status Error"; }
+  }
+}
+
+if($("storeStatusBtn")){
+  $("storeStatusBtn").addEventListener("click",async()=>{
+    if(!["owner","manager"].includes(currentStaffRole)){
+      alert("Only owner or manager can change store status.");
+      return;
+    }
+
+    const button = $("storeStatusBtn");
+    const newStatus = !storeOpenState;
+
+    button.disabled = true;
+    button.innerText = "Updating...";
+
+    try{
+      await setDoc(doc(db,"settings","store"), {
+          open:newStatus,
+          updatedAt: serverTimestamp(),
+          updatedBy: auth.currentUser ? auth.currentUser.uid : ""
+        }, { merge:true }
+      );
+
+      storeOpenState = newStatus;
+      renderStoreStatusButton();
+      alert(newStatus ? "Customer ordering is now OPEN." : "Customer ordering is now CLOSED.");
+
+    }catch(error){
+      console.error(error);
+      alert("Unable to change store status.");
+      renderStoreStatusButton();
+    }finally{
+      button.disabled = false;
+    }
+  });
 }
 // ---------- STAFF AUTH ----------
 
