@@ -27,14 +27,6 @@ import {
 }
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-import {
-  getStorage,
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject
-}
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 // 🔥 FIREBASE CONFIG
 const firebaseConfig = {
@@ -52,7 +44,11 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const auth = getAuth(app);
-const storage = getStorage(app);
+
+const CLOUDINARY_CLOUD_NAME = "ddtusynwx";
+const CLOUDINARY_UPLOAD_PRESET = "matchalogy_products";
+const CLOUDINARY_UPLOAD_URL =
+  `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 
 let appStarted = false;
 let currentStaffRole = "";
@@ -335,7 +331,7 @@ function resetProductImageEditor(product={}){
   if($("productImageFile")) $("productImageFile").value = "";
   setText("imageUploadStatus",editingImageUrl
     ? "Current photo will be kept unless you choose a new one or remove it."
-    : "Choose a photo. It will be compressed and uploaded when you save.");
+    : "Choose a photo. It will be compressed and uploaded to Cloudinary when you save.");
   showProductPhotoPreview(editingImageUrl || "./logo.png");
 }
 
@@ -389,22 +385,48 @@ async function compressProductImage(file){
 
 async function uploadProductPhoto(file,productId){
   const blob = await compressProductImage(file);
-  const path = `product-images/${productId}/${Date.now()}-${safeFileName(file.name)}.jpg`;
-  const ref = storageRef(storage,path);
-  await uploadBytes(ref,blob,{contentType:"image/jpeg"});
-  return {
-    image:await getDownloadURL(ref),
-    imagePath:path
-  };
-}
 
-async function deleteStoredPhoto(path){
-  if(!path) return;
+  const formData = new FormData();
+  const fileName =
+    `${safeFileName(file.name.replace(/\.[^.]+$/,"")) || "product"}.jpg`;
+
+  formData.append("file",blob,fileName);
+  formData.append("upload_preset",CLOUDINARY_UPLOAD_PRESET);
+  formData.append("folder","matchalogy/products");
+  formData.append("context",`product_id=${productId}`);
+
+  const response = await fetch(
+    CLOUDINARY_UPLOAD_URL,
+    {
+      method:"POST",
+      body:formData
+    }
+  );
+
+  let result = {};
+
   try{
-    await deleteObject(storageRef(storage,path));
+    result = await response.json();
   }catch(error){
-    console.warn("Unable to delete old product photo",error);
+    throw new Error("Cloudinary returned an invalid response.");
   }
+
+  if(
+    !response.ok
+    ||
+    !result.secure_url
+  ){
+    throw new Error(
+      result?.error?.message
+      ||
+      "Unable to upload this photo to Cloudinary."
+    );
+  }
+
+  return {
+    image:result.secure_url,
+    imagePath:result.public_id || ""
+  };
 }
 
 
@@ -525,7 +547,6 @@ function bindProductActions(){
       if(!product || !confirm("Delete this product?")) return;
 
       await deleteDoc(doc(db,"products",product.id));
-      await deleteStoredPhoto(product.imagePath || "");
       loadProducts();
     });
   });
@@ -914,7 +935,7 @@ if($("productImageFile")){
 
     const previewUrl = URL.createObjectURL(file);
     showProductPhotoPreview(previewUrl);
-    setText("imageUploadStatus",`${file.name} selected. Photo will upload when you save.`);
+    setText("imageUploadStatus",`${file.name} selected. Photo will upload to Cloudinary when you save.`);
     setTimeout(()=>URL.revokeObjectURL(previewUrl),10000);
   });
 }
@@ -952,14 +973,12 @@ if($("saveBtn")){
 
     let nextImage = removeCurrentImage ? "" : editingImageUrl;
     let nextImagePath = removeCurrentImage ? "" : editingImagePath;
-    let uploadedNewPath = "";
 
     try{
       if(pendingImageFile){
         const uploaded = await uploadProductPhoto(pendingImageFile,productRef.id);
         nextImage = uploaded.image;
         nextImagePath = uploaded.imagePath;
-        uploadedNewPath = uploaded.imagePath;
       }
 
       const modifierEnabled = getValue("modifierEnabled") === "yes";
@@ -1001,21 +1020,12 @@ if($("saveBtn")){
 
       await setDoc(productRef,productData,{merge:true});
 
-      if(
-        editingImagePath &&
-        editingImagePath !== nextImagePath &&
-        (uploadedNewPath || removeCurrentImage)
-      ){
-        await deleteStoredPhoto(editingImagePath);
-      }
-
       alert(editingId ? "Updated ✅" : "Added ✅");
       editingId = null;
       hide("productModal");
       await loadProducts();
     }catch(error){
       console.error(error);
-      if(uploadedNewPath) await deleteStoredPhoto(uploadedNewPath);
       alert(error.message || "Unable to save this product.");
     }finally{
       button.disabled = false;
