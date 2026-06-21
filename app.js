@@ -1,32 +1,6 @@
-import { initializeApp }
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  getDoc,
-  setDoc,
-  deleteDoc,
-  doc,
-  updateDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  runTransaction,
-  serverTimestamp
-}
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-import {
-  getAuth,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut
-}
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, deleteDoc, doc, updateDoc, query, orderBy, onSnapshot, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // 🔥 FIREBASE CONFIG
 const firebaseConfig = {
@@ -39,16 +13,13 @@ const firebaseConfig = {
   measurementId: "G-M6CY1YCQCT"
 };
 
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
 const auth = getAuth(app);
 
 const CLOUDINARY_CLOUD_NAME = "ddtusynwx";
 const CLOUDINARY_UPLOAD_PRESET = "matchalogy_products";
-const CLOUDINARY_UPLOAD_URL =
-  `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 
 let appStarted = false;
 let currentStaffRole = "";
@@ -69,46 +40,14 @@ let editingImageUrl = "";
 let editingImagePath = "";
 let removeCurrentImage = false;
 
-
 // ---------- HELPERS ----------
-
-function $(id){
-  return document.getElementById(id);
-}
-
-function getValue(id){
-  return $(id) ? $(id).value : "";
-}
-
-function setValue(id,value){
-  if($(id)){
-    $(id).value = value ?? "";
-  }
-}
-
-function setText(id,value){
-  if($(id)){
-    $(id).innerText = value;
-  }
-}
-
-function setHTML(id,value){
-  if($(id)){
-    $(id).innerHTML = value;
-  }
-}
-
-function show(id){
-  if($(id)){
-    $(id).style.display = "flex";
-  }
-}
-
-function hide(id){
-  if($(id)){
-    $(id).style.display = "none";
-  }
-}
+function $(id){ return document.getElementById(id); }
+function getValue(id){ return $(id) ? $(id).value : ""; }
+function setValue(id,value){ if($(id)){ $(id).value = value ?? ""; } }
+function setText(id,value){ if($(id)){ $(id).innerText = value; } }
+function setHTML(id,value){ if($(id)){ $(id).innerHTML = value; } }
+function show(id){ if($(id)){ $(id).style.display = "flex"; } }
+function hide(id){ if($(id)){ $(id).style.display = "none"; } }
 
 function escapeHTML(value){
   return String(value ?? "")
@@ -120,60 +59,22 @@ function escapeHTML(value){
 }
 
 function toDate(value){
-
-  if(!value){
-    return new Date();
-  }
-
-  if(value.seconds){
-    return new Date(value.seconds * 1000);
-  }
-
-  if(value.toDate){
-    return value.toDate();
-  }
-
+  if(!value){ return new Date(); }
+  if(value.seconds){ return new Date(value.seconds * 1000); }
+  if(value.toDate){ return value.toDate(); }
   return new Date(value);
-
 }
 
-function money(value){
-  return (Number(value) || 0).toFixed(2);
-}
+function money(value){ return (Number(value) || 0).toFixed(2); }
 
 function getModifierHTML(item){
-
-  const main =
-    [
-      item.milk,
-      item.ice,
-      item.sweet
-    ]
-    .filter(Boolean)
-    .join(" · ");
-
+  const main = [item.milk, item.ice, item.sweet].filter(Boolean).join(" · ");
   let html = "";
-
-  if(main){
-    html += main;
-  }
-
-  if(
-    item.addon
-    &&
-    item.addon !== "None"
-  ){
-    html += `${html ? "<br>" : ""}${escapeHTML(item.addon)}`;
-  }
-
-  if(item.note){
-    html += `${html ? "<br>" : ""}Note: ${escapeHTML(item.note)}`;
-  }
-
+  if(main){ html += main; }
+  if(item.addon && item.addon !== "None"){ html += `${html ? "<br>" : ""}${escapeHTML(item.addon)}`; }
+  if(item.note){ html += `${html ? "<br>" : ""}Note: ${escapeHTML(item.note)}`; }
   return html;
-
 }
-
 
 const DEFAULT_MODIFIER_OPTIONS = {
   milk:[
@@ -216,28 +117,19 @@ function booleanValue(value,fallback=false){
 function normalizeTextOptions(options,fallback){
   const source = Array.isArray(options) && options.length ? options : fallback;
   return source.map(option=>{
-    if(typeof option === "string"){
-      return {value:option,label:option || "None"};
-    }
-    return {
-      value:String(option?.value ?? option?.label ?? ""),
-      label:String(option?.label ?? option?.value ?? "None")
-    };
+    if(typeof option === "string"){ return {value:option,label:option || "None"}; }
+    return { value:String(option?.value ?? option?.label ?? ""), label:String(option?.label ?? option?.value ?? "None") };
   });
 }
 
 function normalizeAddonOptions(options){
-  const source = Array.isArray(options) && options.length
-    ? options
-    : DEFAULT_MODIFIER_OPTIONS.addon;
-
+  const source = Array.isArray(options) && options.length ? options : DEFAULT_MODIFIER_OPTIONS.addon;
   const normalized = source.map(option=>{
     if(typeof option === "string"){
       const priceMatch = option.match(/RM\s*(\d+(?:\.\d+)?)/i);
       const price = priceMatch ? Number(priceMatch[1]) : 0;
       return {value:String(price),label:option,price};
     }
-
     const price = Number(option?.price ?? option?.value) || 0;
     return {
       value:String(option?.value ?? price),
@@ -245,17 +137,14 @@ function normalizeAddonOptions(options){
       price
     };
   });
-
   if(!normalized.some(option=>Number(option.price) === 0)){
     normalized.unshift({value:"0",label:"None",price:0});
   }
-
   return normalized;
 }
 
 function getProductModifierConfig(product={}){
   const enabled = booleanValue(product.modifierEnabled,false);
-
   return {
     enabled,
     showMilk:enabled && booleanValue(product.showMilk,true),
@@ -273,27 +162,17 @@ function getProductModifierConfig(product={}){
 function populateSelect(id,options,selectedValue=""){
   const select = $(id);
   if(!select) return;
-
   const normalizedSelected = String(selectedValue ?? "");
   let list = [...options];
-
-  if(
-    normalizedSelected
-    && !list.some(option=>String(option.value) === normalizedSelected)
-  ){
+  if(normalizedSelected && !list.some(option=>String(option.value) === normalizedSelected)){
     list.push({value:normalizedSelected,label:normalizedSelected,price:0});
   }
-
   select.innerHTML = list.map(option=>`
-    <option
-      value="${escapeHTML(option.value)}"
-      data-price="${Number(option.price) || 0}"
-    >${escapeHTML(option.label)}</option>
+    <option value="${escapeHTML(option.value)}" data-price="${Number(option.price) || 0}">
+      ${escapeHTML(option.label)}
+    </option>
   `).join("");
-
-  select.value = list.some(option=>String(option.value) === normalizedSelected)
-    ? normalizedSelected
-    : String(list[0]?.value ?? "");
+  select.value = list.some(option=>String(option.value) === normalizedSelected) ? normalizedSelected : String(list[0]?.value ?? "");
 }
 
 function setVisible(id,visible){
@@ -314,10 +193,7 @@ function syncProductSettingsVisibility(){
 function showProductPhotoPreview(url){
   const preview = $("productImagePreview");
   if(!preview) return;
-  preview.onerror = ()=>{
-    preview.onerror = null;
-    preview.src = "./logo.png";
-  };
+  preview.onerror = ()=>{ preview.onerror = null; preview.src = "./logo.png"; };
   preview.src = url || "./logo.png";
 }
 
@@ -329,31 +205,16 @@ function resetProductImageEditor(product={}){
   setValue("image",editingImageUrl);
   setValue("imagePath",editingImagePath);
   if($("productImageFile")) $("productImageFile").value = "";
-  setText("imageUploadStatus",editingImageUrl
-    ? "Current photo will be kept unless you choose a new one or remove it."
-    : "Choose a photo. It will be compressed and uploaded to Cloudinary when you save.");
+  setText("imageUploadStatus",editingImageUrl ? "Current photo will be kept unless you choose a new one or remove it." : "Choose a photo. It will be compressed and uploaded to Cloudinary when you save.");
   showProductPhotoPreview(editingImageUrl || "./logo.png");
 }
 
-function safeFileName(value){
-  return String(value || "product")
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g,"-")
-    .replace(/-+/g,"-")
-    .slice(0,80);
-}
+function safeFileName(value){ return String(value || "product").toLowerCase().replace(/[^a-z0-9._-]+/g,"-").replace(/-+/g,"-").slice(0,80); }
 
 async function compressProductImage(file){
-  if(!file.type.startsWith("image/")){
-    throw new Error("Please choose an image file.");
-  }
-
-  if(file.size > 12 * 1024 * 1024){
-    throw new Error("Photo is too large. Maximum size is 12MB.");
-  }
-
+  if(!file.type.startsWith("image/")){ throw new Error("Please choose an image file."); }
+  if(file.size > 12 * 1024 * 1024){ throw new Error("Photo is too large. Maximum size is 12MB."); }
   const objectUrl = URL.createObjectURL(file);
-
   try{
     const image = await new Promise((resolve,reject)=>{
       const img = new Image();
@@ -361,7 +222,6 @@ async function compressProductImage(file){
       img.onerror = ()=>reject(new Error("Unable to read this photo."));
       img.src = objectUrl;
     });
-
     const maxSide = 1600;
     const scale = Math.min(1,maxSide / Math.max(image.naturalWidth,image.naturalHeight));
     const width = Math.max(1,Math.round(image.naturalWidth * scale));
@@ -371,11 +231,7 @@ async function compressProductImage(file){
     canvas.height = height;
     const context = canvas.getContext("2d");
     context.drawImage(image,0,0,width,height);
-
-    const blob = await new Promise(resolve=>
-      canvas.toBlob(resolve,"image/jpeg",0.84)
-    );
-
+    const blob = await new Promise(resolve=> canvas.toBlob(resolve,"image/jpeg",0.84) );
     if(!blob) throw new Error("Unable to prepare this photo.");
     return blob;
   }finally{
@@ -385,66 +241,25 @@ async function compressProductImage(file){
 
 async function uploadProductPhoto(file,productId){
   const blob = await compressProductImage(file);
-
   const formData = new FormData();
-  const fileName =
-    `${safeFileName(file.name.replace(/\.[^.]+$/,"")) || "product"}.jpg`;
-
+  const fileName = `${safeFileName(file.name.replace(/\.[^.]+$/,"")) || "product"}.jpg`;
   formData.append("file",blob,fileName);
   formData.append("upload_preset",CLOUDINARY_UPLOAD_PRESET);
   formData.append("folder","matchalogy/products");
   formData.append("context",`product_id=${productId}`);
-
-  const response = await fetch(
-    CLOUDINARY_UPLOAD_URL,
-    {
-      method:"POST",
-      body:formData
-    }
-  );
-
+  const response = await fetch(CLOUDINARY_UPLOAD_URL, { method:"POST", body:formData });
   let result = {};
-
-  try{
-    result = await response.json();
-  }catch(error){
-    throw new Error("Cloudinary returned an invalid response.");
-  }
-
-  if(
-    !response.ok
-    ||
-    !result.secure_url
-  ){
-    throw new Error(
-      result?.error?.message
-      ||
-      "Unable to upload this photo to Cloudinary."
-    );
-  }
-
-  return {
-    image:result.secure_url,
-    imagePath:result.public_id || ""
-  };
+  try{ result = await response.json(); }catch(error){ throw new Error("Cloudinary returned an invalid response."); }
+  if(!response.ok || !result.secure_url){ throw new Error(result?.error?.message || "Unable to upload this photo to Cloudinary."); }
+  return { image:result.secure_url, imagePath:result.public_id || "" };
 }
 
-
 // ---------- PRODUCTS ----------
-
 async function loadProducts(){
-
   const snapshot = await getDocs(collection(db,"products"));
   const productList = [];
-
-  snapshot.forEach(docSnap=>{
-    productList.push({id:docSnap.id,...docSnap.data()});
-  });
-
-  productList.sort((a,b)=>
-    Number(a.sort ?? 9999999999999) - Number(b.sort ?? 9999999999999)
-  );
-
+  snapshot.forEach(docSnap=>{ productList.push({id:docSnap.id,...docSnap.data()}); });
+  productList.sort((a,b)=> Number(a.sort ?? 9999999999999) - Number(b.sort ?? 9999999999999) );
   productCache = new Map(productList.map(product=>[product.id,product]));
 
   const visibleProducts = productList.filter(product=>{
@@ -456,16 +271,10 @@ async function loadProducts(){
     const price = Number(product.price) || 0;
     const available = product.available !== false;
     const image = product.image || product.imageUrl || product.photo || "./logo.png";
-
     return `
       <div class="card ${available ? "" : "sold-out"}" data-id="${escapeHTML(product.id)}">
         ${available ? "" : '<div class="sold-out-badge">Sold Out</div>'}
-        <img
-          src="${escapeHTML(image)}"
-          alt="${escapeHTML(product.name || "")}" 
-          loading="lazy"
-          onerror="this.onerror=null;this.src='./logo.png';"
-        >
+        <img src="${escapeHTML(image)}" alt="${escapeHTML(product.name || "")}" loading="lazy" onerror="this.onerror=null;this.src='./logo.png';">
         <div class="card-body">
           <div class="drag-handle">☰</div>
           <div class="name">${escapeHTML(product.name || "")}</div>
@@ -487,15 +296,12 @@ async function loadProducts(){
 
 function openStaffModifier(product){
   const config = getProductModifierConfig(product);
-
   if(!config.enabled){
     addPlainCartItem(product.name,Number(product.price) || 0);
     return;
   }
-
   selectedProduct = product;
   setText("modifierTitle",product.name || "Product");
-
   setVisible("staffMilkGroup",config.showMilk);
   setVisible("staffIceGroup",config.showIce);
   setVisible("staffSweetGroup",config.showSweet);
@@ -514,27 +320,16 @@ function openStaffModifier(product){
     selectedProduct = null;
     return;
   }
-
   show("modifierModal");
 }
 
 function bindProductClicks(){
   document.querySelectorAll(".card").forEach(card=>{
     card.addEventListener("click",event=>{
-      if(
-        event.target.classList.contains("edit") ||
-        event.target.classList.contains("delete") ||
-        event.target.classList.contains("drag-handle")
-      ) return;
-
+      if( event.target.classList.contains("edit") || event.target.classList.contains("delete") || event.target.classList.contains("drag-handle") ) return;
       const product = productCache.get(card.dataset.id);
       if(!product) return;
-
-      if(product.available === false){
-        alert("This product is marked Sold Out.");
-        return;
-      }
-
+      if(product.available === false){ alert("This product is marked Sold Out."); return; }
       openStaffModifier(product);
     });
   });
@@ -545,7 +340,6 @@ function bindProductActions(){
     button.addEventListener("click",async()=>{
       const product = productCache.get(button.dataset.delete);
       if(!product || !confirm("Delete this product?")) return;
-
       await deleteDoc(doc(db,"products",product.id));
       loadProducts();
     });
@@ -555,20 +349,13 @@ function bindProductActions(){
     button.addEventListener("click",()=>{
       const product = productCache.get(button.dataset.id);
       if(!product) return;
-
       editingId = product.id;
       const config = getProductModifierConfig(product);
-
       setText("productModalTitle","Edit Product");
       setValue("name",product.name || "");
       setValue("price",Number(product.price) || 0);
       const productCategory = String(product.category || "other").toLowerCase();
-      setValue(
-        "category",
-        ["matcha","espresso","basque","mousse","other"].includes(productCategory)
-          ? productCategory
-          : "other"
-      );
+      setValue("category", ["matcha","espresso","basque","mousse","other"].includes(productCategory) ? productCategory : "other");
       setValue("productAvailable",product.available === false ? "no" : "yes");
       setValue("modifierEnabled",config.enabled ? "yes" : "no");
       setValue("showMilk",config.showMilk ? "yes" : "no");
@@ -591,306 +378,115 @@ function bindProductActions(){
 }
 
 function initSortable(){
-
-  const productsEl =
-    $("products");
-
-  if(
-    !productsEl
-    ||
-    typeof Sortable === "undefined"
-  ){
-    return;
-  }
-
-  if(sortableInstance){
-    sortableInstance.destroy();
-  }
-
-  sortableInstance =
-    new Sortable(
-      productsEl,
-      {
-        handle:".drag-handle",
-        animation:150,
-        ghostClass:"dragging",
-
-        onEnd: async ()=>{
-
-          const cards =
-            document.querySelectorAll(".card");
-
-          for(let i=0;i<cards.length;i++){
-
-            const id =
-              cards[i].dataset.id;
-
-            await updateDoc(
-              doc(db,"products",id),
-              {
-                sort:i
-              }
-            );
-
-          }
-
-        }
-
+  const productsEl = $("products");
+  if(!productsEl || typeof Sortable === "undefined"){ return; }
+  if(sortableInstance){ sortableInstance.destroy(); }
+  sortableInstance = new Sortable(productsEl, {
+    handle:".drag-handle", animation:150, ghostClass:"dragging",
+    onEnd: async ()=>{
+      const cards = document.querySelectorAll(".card");
+      for(let i=0;i<cards.length;i++){
+        const id = cards[i].dataset.id;
+        await updateDoc(doc(db,"products",id), { sort:i });
       }
-    );
-
+    }
+  });
 }
-
 
 // ---------- CART ----------
-
 function addPlainCartItem(name,price){
-
-  const existing =
-    cart.find(i=>
-      i.name === name
-      &&
-      !i.milk
-      &&
-      !i.ice
-      &&
-      !i.sweet
-      &&
-      !i.addon
-      &&
-      !i.note
-    );
-
-  if(existing){
-
-    existing.qty += 1;
-
-  }else{
-
-    cart.push({
-      name,
-      price,
-      qty:1
-    });
-
-  }
-
+  const existing = cart.find(i=> i.name === name && !i.milk && !i.ice && !i.sweet && !i.addon && !i.note );
+  if(existing){ existing.qty += 1; }else{ cart.push({ name, price, qty:1 }); }
   renderCart();
-
 }
 
-
 function renderCart(){
-
   let html = "";
   let subtotal = 0;
-
   cart.forEach((item,index)=>{
-
-    const lineTotal =
-      (Number(item.price) || 0)
-      *
-      (Number(item.qty) || 0);
-
+    const lineTotal = (Number(item.price) || 0) * (Number(item.qty) || 0);
     subtotal += lineTotal;
-
-    const modifierHTML =
-      getModifierHTML(item);
-
+    const modifierHTML = getModifierHTML(item);
     html += `
-
       <li>
-
-        <strong>
-          ${escapeHTML(item.name)}
-        </strong>
-
-        ${modifierHTML ? `
-          <br>
-          <small>
-            ${modifierHTML}
-          </small>
-        ` : ""}
-
+        <strong>${escapeHTML(item.name)}</strong>
+        ${modifierHTML ? `<br><small>${modifierHTML}</small>` : ""}
         <br><br>
-
-        x${item.qty}
-        -
-        RM${money(lineTotal)}
-
-        <button
-          class="remove-btn minus-btn"
-          data-index="${index}"
-        >
-          -
-        </button>
-
-        <button
-          class="remove-btn plus-btn"
-          data-index="${index}"
-        >
-          +
-        </button>
-
-        <button
-          class="remove-btn delete-cart-btn"
-          data-index="${index}"
-        >
-          ❌
-        </button>
-
+        x${item.qty} - RM${money(lineTotal)}
+        <button class="remove-btn minus-btn" data-index="${index}">-</button>
+        <button class="remove-btn plus-btn" data-index="${index}">+</button>
+        <button class="remove-btn delete-cart-btn" data-index="${index}">❌</button>
       </li>
-
     `;
-
   });
 
   setHTML("cart",html);
+  const discount = Number(getValue("discount")) || 0;
+  const total = Math.max(0, subtotal - discount);
+  setText("total", money(total));
 
-  const discount =
-    Number(getValue("discount")) || 0;
-
-  const total =
-    Math.max(
-      0,
-      subtotal - discount
-    );
-
-  setText(
-    "total",
-    money(total)
-  );
-
-
-  document.querySelectorAll(".minus-btn")
-  .forEach(btn=>{
-
+  document.querySelectorAll(".minus-btn").forEach(btn=>{
     btn.addEventListener("click",()=>{
-
-      const index =
-        Number(btn.dataset.index);
-
+      const index = Number(btn.dataset.index);
       cart[index].qty -= 1;
-
-      if(cart[index].qty <= 0){
-
-        cart.splice(index,1);
-
-      }
-
+      if(cart[index].qty <= 0){ cart.splice(index,1); }
       renderCart();
-
     });
-
   });
 
-
-  document.querySelectorAll(".plus-btn")
-  .forEach(btn=>{
-
+  document.querySelectorAll(".plus-btn").forEach(btn=>{
     btn.addEventListener("click",()=>{
-
-      const index =
-        Number(btn.dataset.index);
-
+      const index = Number(btn.dataset.index);
       cart[index].qty += 1;
-
       renderCart();
-
     });
-
   });
 
-
-  document.querySelectorAll(".delete-cart-btn")
-  .forEach(btn=>{
-
+  document.querySelectorAll(".delete-cart-btn").forEach(btn=>{
     btn.addEventListener("click",()=>{
-
-      cart.splice(
-        Number(btn.dataset.index),
-        1
-      );
-
+      cart.splice(Number(btn.dataset.index), 1);
       renderCart();
-
     });
-
   });
-
 }
 
-
 // ---------- MODIFIER ----------
-
 if($("addModifierBtn")){
   $("addModifierBtn").addEventListener("click",()=>{
     if(!selectedProduct) return;
-
     const config = getProductModifierConfig(selectedProduct);
     const milk = config.showMilk ? getValue("milkSelect") : "";
     const ice = config.showIce ? getValue("iceSelect") : "";
     const sweet = config.showSweet ? getValue("sweetSelect") : "";
     const note = config.showNote ? getValue("noteInput").trim().slice(0,200) : "";
-
     const addonSelect = $("addonSelect");
-    const selectedAddonOption = config.showAddon && addonSelect
-      ? addonSelect.selectedOptions[0]
-      : null;
+    const selectedAddonOption = config.showAddon && addonSelect ? addonSelect.selectedOptions[0] : null;
     const addonCode = selectedAddonOption ? selectedAddonOption.value : "0";
     const addonPrice = selectedAddonOption ? Number(selectedAddonOption.dataset.price) || 0 : 0;
     const addonName = selectedAddonOption ? selectedAddonOption.text.trim() : "None";
     const finalPrice = (Number(selectedProduct.price) || 0) + addonPrice;
 
     const existing = cart.find(item=>
-      item.productId === selectedProduct.id &&
-      item.milk === milk &&
-      item.ice === ice &&
-      item.sweet === sweet &&
-      item.addonCode === addonCode &&
-      item.note === note &&
-      Number(item.price) === Number(finalPrice)
+      item.productId === selectedProduct.id && item.milk === milk && item.ice === ice &&
+      item.sweet === sweet && item.addonCode === addonCode && item.note === note && Number(item.price) === Number(finalPrice)
     );
 
-    if(existing){
-      existing.qty += 1;
-    }else{
-      cart.push({
-        productId:selectedProduct.id,
-        name:selectedProduct.name,
-        price:finalPrice,
-        qty:1,
-        milk,
-        ice,
-        sweet,
-        addon:addonName,
-        addonCode,
-        note
-      });
+    if(existing){ existing.qty += 1; }else{
+      cart.push({ productId:selectedProduct.id, name:selectedProduct.name, price:finalPrice, qty:1, milk, ice, sweet, addon:addonName, addonCode, note });
     }
-
     selectedProduct = null;
     renderCart();
     hide("modifierModal");
   });
 }
 
-
 // ---------- PRODUCT MODAL + SAVE PRODUCT ----------
-
 function prepareNewProductForm(){
   editingId = null;
   setText("productModalTitle","Add Product");
-  setValue("name","");
-  setValue("price","");
-  setValue("category","matcha");
-  setValue("productAvailable","yes");
-  setValue("modifierEnabled","no");
-  setValue("showMilk","yes");
-  setValue("showIce","yes");
-  setValue("showSweet","yes");
-  setValue("showAddon","yes");
-  setValue("showNote","yes");
+  setValue("name",""); setValue("price",""); setValue("category","matcha"); setValue("productAvailable","yes");
+  setValue("modifierEnabled","no"); setValue("showMilk","yes"); setValue("showIce","yes"); setValue("showSweet","yes");
+  setValue("showAddon","yes"); setValue("showNote","yes");
   populateSelect("defaultMilk",DEFAULT_MODIFIER_OPTIONS.milk,"");
   populateSelect("defaultIce",DEFAULT_MODIFIER_OPTIONS.ice,"");
   populateSelect("defaultSweet",DEFAULT_MODIFIER_OPTIONS.sweet,"");
@@ -900,16 +496,8 @@ function prepareNewProductForm(){
   syncProductSettingsVisibility();
 }
 
-if($("openProductBtn")){
-  $("openProductBtn").addEventListener("click",()=>{
-    prepareNewProductForm();
-    show("productModal");
-  });
-}
-
-if($("closeProductBtn")){
-  $("closeProductBtn").addEventListener("click",()=>hide("productModal"));
-}
+if($("openProductBtn")){ $("openProductBtn").addEventListener("click",()=>{ prepareNewProductForm(); show("productModal"); }); }
+if($("closeProductBtn")){ $("closeProductBtn").addEventListener("click",()=>hide("productModal")); }
 
 ["modifierEnabled","showMilk","showIce","showSweet","showAddon","showNote"].forEach(id=>{
   if($(id)) $(id).addEventListener("change",syncProductSettingsVisibility);
@@ -918,21 +506,9 @@ if($("closeProductBtn")){
 if($("productImageFile")){
   $("productImageFile").addEventListener("change",event=>{
     const file = event.target.files?.[0] || null;
-    pendingImageFile = file;
-    removeCurrentImage = false;
-
-    if(!file){
-      showProductPhotoPreview(editingImageUrl || "./logo.png");
-      return;
-    }
-
-    if(!file.type.startsWith("image/")){
-      alert("Please choose an image file.");
-      event.target.value = "";
-      pendingImageFile = null;
-      return;
-    }
-
+    pendingImageFile = file; removeCurrentImage = false;
+    if(!file){ showProductPhotoPreview(editingImageUrl || "./logo.png"); return; }
+    if(!file.type.startsWith("image/")){ alert("Please choose an image file."); event.target.value = ""; pendingImageFile = null; return; }
     const previewUrl = URL.createObjectURL(file);
     showProductPhotoPreview(previewUrl);
     setText("imageUploadStatus",`${file.name} selected. Photo will upload to Cloudinary when you save.`);
@@ -942,11 +518,9 @@ if($("productImageFile")){
 
 if($("removeProductImageBtn")){
   $("removeProductImageBtn").addEventListener("click",()=>{
-    pendingImageFile = null;
-    removeCurrentImage = true;
+    pendingImageFile = null; removeCurrentImage = true;
     if($("productImageFile")) $("productImageFile").value = "";
-    setValue("image","");
-    setValue("imagePath","");
+    setValue("image",""); setValue("imagePath","");
     showProductPhotoPreview("./logo.png");
     setText("imageUploadStatus","Photo will be removed when you save.");
   });
@@ -957,30 +531,20 @@ if($("saveBtn")){
     const name = getValue("name").trim();
     const price = Number(getValue("price"));
     const category = getValue("category").trim().toLowerCase();
-
-    if(!name || !Number.isFinite(price) || price < 0){
-      alert("请填写正确的商品名称和价格");
-      return;
-    }
+    if(!name || !Number.isFinite(price) || price < 0){ alert("请填写正确的商品名称和价格"); return; }
 
     const button = $("saveBtn");
-    button.disabled = true;
-    button.innerText = pendingImageFile ? "Uploading Photo..." : "Saving...";
+    button.disabled = true; button.innerText = pendingImageFile ? "Uploading Photo..." : "Saving...";
 
-    const productRef = editingId
-      ? doc(db,"products",editingId)
-      : doc(collection(db,"products"));
-
+    const productRef = editingId ? doc(db,"products",editingId) : doc(collection(db,"products"));
     let nextImage = removeCurrentImage ? "" : editingImageUrl;
     let nextImagePath = removeCurrentImage ? "" : editingImagePath;
 
     try{
       if(pendingImageFile){
         const uploaded = await uploadProductPhoto(pendingImageFile,productRef.id);
-        nextImage = uploaded.image;
-        nextImagePath = uploaded.imagePath;
+        nextImage = uploaded.image; nextImagePath = uploaded.imagePath;
       }
-
       const modifierEnabled = getValue("modifierEnabled") === "yes";
       const showMilk = modifierEnabled && getValue("showMilk") === "yes";
       const showIce = modifierEnabled && getValue("showIce") === "yes";
@@ -989,788 +553,223 @@ if($("saveBtn")){
       const showNote = modifierEnabled && getValue("showNote") === "yes";
 
       const productData = {
-        name,
-        price,
-        category,
-        image:nextImage,
-        imagePath:nextImagePath,
-        available:getValue("productAvailable") !== "no",
-        modifierEnabled,
-        showMilk,
-        showIce,
-        showSweet,
-        showAddon,
-        showNote,
-        defaultMilk:showMilk ? getValue("defaultMilk") : "",
-        defaultIce:showIce ? getValue("defaultIce") : "",
-        defaultSweet:showSweet ? getValue("defaultSweet") : "",
-        defaultAddon:showAddon ? getValue("defaultAddon") || "0" : "0",
+        name, price, category, image:nextImage, imagePath:nextImagePath,
+        available:getValue("productAvailable") !== "no", modifierEnabled, showMilk, showIce, showSweet, showAddon, showNote,
+        defaultMilk:showMilk ? getValue("defaultMilk") : "", defaultIce:showIce ? getValue("defaultIce") : "",
+        defaultSweet:showSweet ? getValue("defaultSweet") : "", defaultAddon:showAddon ? getValue("defaultAddon") || "0" : "0",
         defaultNote:showNote ? getValue("defaultNote").trim().slice(0,200) : "",
-        milkOptions:DEFAULT_MODIFIER_OPTIONS.milk,
-        iceOptions:DEFAULT_MODIFIER_OPTIONS.ice,
-        sweetOptions:DEFAULT_MODIFIER_OPTIONS.sweet,
-        addonOptions:DEFAULT_MODIFIER_OPTIONS.addon,
-        updatedAt:serverTimestamp()
+        milkOptions:DEFAULT_MODIFIER_OPTIONS.milk, iceOptions:DEFAULT_MODIFIER_OPTIONS.ice, sweetOptions:DEFAULT_MODIFIER_OPTIONS.sweet,
+        addonOptions:DEFAULT_MODIFIER_OPTIONS.addon, updatedAt:serverTimestamp()
       };
-
-      if(!editingId){
-        productData.sort = Date.now();
-        productData.createdAt = serverTimestamp();
-      }
-
+      if(!editingId){ productData.sort = Date.now(); productData.createdAt = serverTimestamp(); }
       await setDoc(productRef,productData,{merge:true});
-
       alert(editingId ? "Updated ✅" : "Added ✅");
-      editingId = null;
-      hide("productModal");
-      await loadProducts();
+      editingId = null; hide("productModal"); await loadProducts();
     }catch(error){
-      console.error(error);
-      alert(error.message || "Unable to save this product.");
+      console.error(error); alert(error.message || "Unable to save this product.");
     }finally{
-      button.disabled = false;
-      button.innerText = "Save Product";
+      button.disabled = false; button.innerText = "Save Product";
     }
   });
 }
 
-
 // ---------- CHECKOUT ----------
-
-if($("clearCartBtn")){
-
-  $("clearCartBtn")
-  .addEventListener("click",()=>{
-
-    cart = [];
-    renderCart();
-
-  });
-
-}
-
+if($("clearCartBtn")){ $("clearCartBtn").addEventListener("click",()=>{ cart = []; renderCart(); }); }
 
 async function checkout(method){
+  if(cart.length === 0){ alert("Cart empty"); return; }
+  const orderNo = Date.now().toString().slice(-6);
+  const orderNote = getValue("orderNote");
+  const subtotal = cart.reduce((s,i)=> s + ((Number(i.price) || 0) * (Number(i.qty) || 0)), 0);
+  const discount = Number(getValue("discount")) || 0;
+  const total = Math.max(0, subtotal - discount);
 
-  if(cart.length === 0){
-
-    alert("Cart empty");
-
-    return;
-
-  }
-
-  const orderNo =
-    Date.now()
-    .toString()
-    .slice(-6);
-
-  const orderNote =
-    getValue("orderNote");
-
-  const subtotal =
-    cart.reduce(
-      (s,i)=>
-        s
-        +
-        (
-          (Number(i.price) || 0)
-          *
-          (Number(i.qty) || 0)
-        ),
-      0
-    );
-
-  const discount =
-    Number(getValue("discount")) || 0;
-
-  const total =
-    Math.max(
-      0,
-      subtotal - discount
-    );
-
-  const orderData = {
-    orderNo,
-    items:cart,
-    subtotal,
-    discount,
-    total,
-    payment:method,
-    note:orderNote,
-    time:new Date()
-  };
-
-  await addDoc(
-    collection(db,"orders"),
-    orderData
-  );
-
+  const orderData = { orderNo, items:cart, subtotal, discount, total, payment:method, note:orderNote, time:new Date() };
+  await addDoc(collection(db,"orders"), orderData);
   showReceipt(orderData);
-
-  cart = [];
-
-  setValue("discount","");
-  setValue("orderNote","");
-
-  renderCart();
-  loadDashboard();
-
+  cart = []; setValue("discount",""); setValue("orderNote","");
+  renderCart(); loadDashboard();
 }
 
-
-if($("cashBtn")){
-
-  $("cashBtn")
-  .addEventListener("click",()=>{
-
-    checkout("Cash");
-
-  });
-
-}
-
-
-if($("tngBtn")){
-
-  $("tngBtn")
-  .addEventListener("click",()=>{
-
-    checkout("TNG");
-
-  });
-
-}
-
-
-if($("ShopeeBtn")){
-
-  $("ShopeeBtn")
-  .addEventListener("click",()=>{
-
-    checkout("Shopee");
-
-  });
-
-}
-
-
-if($("discount")){
-
-  $("discount")
-  .addEventListener("input",()=>{
-
-    renderCart();
-
-  });
-
-}
-
+if($("cashBtn")){ $("cashBtn").addEventListener("click",()=>{ checkout("Cash"); }); }
+if($("tngBtn")){ $("tngBtn").addEventListener("click",()=>{ checkout("TNG"); }); }
+if($("ShopeeBtn")){ $("ShopeeBtn").addEventListener("click",()=>{ checkout("Shopee"); }); }
+if($("discount")){ $("discount").addEventListener("input",()=>{ renderCart(); }); }
 
 // ---------- CATEGORY TABS ----------
-
-document.querySelectorAll(".tab")
-.forEach(tab=>{
-
+document.querySelectorAll(".tab").forEach(tab=>{
   tab.addEventListener("click",()=>{
-
-    document.querySelectorAll(".tab")
-    .forEach(t=>{
-
-      t.classList.remove("active");
-
-    });
-
+    document.querySelectorAll(".tab").forEach(t=>{ t.classList.remove("active"); });
     tab.classList.add("active");
-
-    currentCategory =
-      tab.dataset.category;
-
+    currentCategory = tab.dataset.category;
     loadProducts();
-
   });
-
 });
 
-
 // ---------- DASHBOARD ----------
-
 function renderTopSelling(data){
-
-  const sorted =
-    Object.entries(data)
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,3);
-
-  if(sorted.length === 0){
-    return "-";
-  }
-
-  return sorted
-    .map((item,index)=>`
-      <div>
-        ${index + 1}. ${escapeHTML(item[0])} x${item[1]}
-      </div>
-    `)
-    .join("");
-
+  const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  if(sorted.length === 0){ return "-"; }
+  return sorted.map((item,index)=>`<div>${index + 1}. ${escapeHTML(item[0])} x${item[1]}</div>`).join("");
 }
 
 function renderFullSales(data){
-
-  const sorted =
-    Object.entries(data)
-    .sort((a,b)=>b[1]-a[1]);
-
-  if(sorted.length === 0){
-    return "<div>No sales data</div>";
-  }
-
-  return sorted
-    .map((item,index)=>`
-
-      <div class="full-sales-row">
-
-        <span>
-          ${index + 1}. ${escapeHTML(item[0])}
-        </span>
-
-        <strong>
-          x${item[1]}
-        </strong>
-
-      </div>
-
-    `)
-    .join("");
-
+  const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
+  if(sorted.length === 0){ return "<div>No sales data</div>"; }
+  return sorted.map((item,index)=>`
+    <div class="full-sales-row">
+      <span>${index + 1}. ${escapeHTML(item[0])}</span><strong>x${item[1]}</strong>
+    </div>
+  `).join("");
 }
 
-
 async function loadDashboard(){
-
-  const q =
-    query(
-      collection(db,"orders"),
-      orderBy("time","desc")
-    );
-
-  const snapshot =
-    await getDocs(q);
-
-  let revenue = 0;
-  let count = 0;
-  let discountTotal = 0;
-
-  let topToday = {};
-  let topMonth = {};
-  let topAllTime = {};
-
-  let hourlySales = {};
-
-  let ordersHTML = "";
-
-  const today =
-    new Date().toDateString();
-
-  const now =
-    new Date();
+  const q = query(collection(db,"orders"), orderBy("time","desc"));
+  const snapshot = await getDocs(q);
+  let revenue = 0; let count = 0; let discountTotal = 0;
+  let topToday = {}; let topMonth = {}; let topAllTime = {};
+  let hourlySales = {}; let ordersHTML = "";
+  const today = new Date().toDateString();
+  const now = new Date();
 
   snapshot.forEach((docSnap)=>{
+    const order = docSnap.data();
+    const orderDate = toDate(order.time);
+    const hour = orderDate.getHours();
+    const slot = Math.floor(hour / 2) * 2;
+    hourlySales[slot] = (hourlySales[slot] || 0) + (Number(order.total) || 0);
 
-    const order =
-      docSnap.data();
+    order.items.forEach(item=>{ topAllTime[item.name] = (topAllTime[item.name] || 0) + (Number(item.qty) || 0); });
 
-    const orderDate =
-      toDate(order.time);
-
-const hour =
-  orderDate.getHours();
-
-const slot =
-  Math.floor(hour / 2) * 2;
-
-hourlySales[slot] =
-  (hourlySales[slot] || 0)
-  +
-  (Number(order.total) || 0);
-
-    order.items.forEach(item=>{
-
-      topAllTime[item.name] =
-        (topAllTime[item.name] || 0)
-        +
-        (Number(item.qty) || 0);
-
-    });
-
-    if(
-      orderDate.getMonth() === now.getMonth()
-      &&
-      orderDate.getFullYear() === now.getFullYear()
-    ){
-
-      order.items.forEach(item=>{
-
-        topMonth[item.name] =
-          (topMonth[item.name] || 0)
-          +
-          (Number(item.qty) || 0);
-
-      });
-
+    if(orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear()){
+      order.items.forEach(item=>{ topMonth[item.name] = (topMonth[item.name] || 0) + (Number(item.qty) || 0); });
     }
 
-    if(
-      orderDate.toDateString()
-      === today
-    ){
-
-      revenue +=
-        Number(order.total) || 0;
-
-      count += 1;
-
-      discountTotal +=
-        Number(order.discount) || 0;
-
+    if(orderDate.toDateString() === today){
+      revenue += Number(order.total) || 0; count += 1; discountTotal += Number(order.discount) || 0;
       let itemsHTML = "";
-
       order.items.forEach(item=>{
-
-        const modifierHTML =
-          getModifierHTML(item);
-
-        itemsHTML += `
-
-          <div>
-            ${escapeHTML(item.name)} x${item.qty}
-
-            ${modifierHTML ? `
-              <small>
-                <br>
-                ${modifierHTML}
-              </small>
-            ` : ""}
-
-          </div>
-
-        `;
-
-        topToday[item.name] =
-          (topToday[item.name] || 0)
-          +
-          (Number(item.qty) || 0);
-
+        const modifierHTML = getModifierHTML(item);
+        itemsHTML += `<div>${escapeHTML(item.name)} x${item.qty} ${modifierHTML ? `<small><br>${modifierHTML}</small>` : ""}</div>`;
+        topToday[item.name] = (topToday[item.name] || 0) + (Number(item.qty) || 0);
       });
 
       ordersHTML += `
-
         <div class="order-card">
-
-          <div
-            class="order-header"
-            onclick="toggleOrder('${docSnap.id}')"
-          >
-
-            <div>
-              <span class="order-no">
-                ${order.orderNo ? "#" + order.orderNo : ""}
-              </span>
-
-              <span class="order-clock">
-                ${orderDate.toLocaleTimeString()}
-              </span>
-            </div>
-
-            <div>
-              RM ${money(order.total)}
-            </div>
-
+          <div class="order-header" onclick="toggleOrder('${docSnap.id}')">
+            <div><span class="order-no">${order.orderNo ? "#" + order.orderNo : ""}</span> <span class="order-clock">${orderDate.toLocaleTimeString()}</span></div>
+            <div>RM ${money(order.total)}</div>
           </div>
-
-          <div
-            class="order-details"
-            id="order-${docSnap.id}"
-          >
-
+          <div class="order-details" id="order-${docSnap.id}">
             ${itemsHTML}
-
             <div class="order-payment">
-
               ${escapeHTML(order.payment || "")}
-
-              ${order.discount > 0
-                ? `<br>Discount: RM ${money(order.discount)}`
-                : ""
-              }
-
-              ${order.note
-                ? `<br>Note: ${escapeHTML(order.note)}`
-                : ""
-              }
-
+              ${order.discount > 0 ? `<br>Discount: RM ${money(order.discount)}` : ""}
+              ${order.note ? `<br>Note: ${escapeHTML(order.note)}` : ""}
             </div>
-
             <div class="order-actions">
-
-              <button
-                onclick="deleteOrder('${docSnap.id}')"
-              >
-                Delete
-              </button>
-
-              <button
-                onclick="editOrder('${docSnap.id}')"
-              >
-                Edit Order
-              </button>
-
+              <button onclick="deleteOrder('${docSnap.id}')">Delete</button>
+              <button onclick="editOrder('${docSnap.id}')">Edit Order</button>
             </div>
-
           </div>
-
         </div>
-
       `;
-
     }
-
   });
 
-  setText("todayRevenue",money(revenue));
-  setText("todayOrders",count);
-  setText("todayDiscount",money(discountTotal));
-
+  setText("todayRevenue",money(revenue)); setText("todayOrders",count); setText("todayDiscount",money(discountTotal));
   setHTML("ordersList",ordersHTML);
+  setHTML("topSellingToday", renderTopSelling(topToday));
+  setHTML("topSellingMonth", renderTopSelling(topMonth));
+  setHTML("topSellingAllTime", renderTopSelling(topAllTime));
 
-  setHTML(
-    "topSellingToday",
-    renderTopSelling(topToday)
-  );
-
-  setHTML(
-    "topSellingMonth",
-    renderTopSelling(topMonth)
-  );
-
-  setHTML(
-  "topSellingAllTime",
-  renderTopSelling(topAllTime)
-);
-
-fullMonthSales = topMonth;
-fullAllTimeSales = topAllTime;
-
-const peak =
-  Object.entries(hourlySales)
-  .sort(
-    (a,b)=>b[1]-a[1]
-  )[0];
-
-if(peak && $("peakHour")){
-  const startHour = Number(peak[0]);
-  const endHour = startHour + 2;
-  const timeRangeString = `${startHour.toString().padStart(2, '0')}:00 - ${endHour.toString().padStart(2, '0')}:00`;
-  setText("peakHour", timeRangeString);
+  fullMonthSales = topMonth; fullAllTimeSales = topAllTime;
+  const peak = Object.entries(hourlySales).sort((a,b)=>b[1]-a[1])[0];
+  if(peak && $("peakHour")){
+    const startHour = Number(peak[0]);
+    const endHour = startHour + 2;
+    const timeRangeString = `${startHour.toString().padStart(2, '0')}:00 - ${endHour.toString().padStart(2, '0')}:00`;
+    setText("peakHour", timeRangeString);
+  }
 }
-
 
 window.toggleOrder = function(id){
-
-  const el =
-    $(`order-${id}`);
-
+  const el = $(`order-${id}`);
   if(!el) return;
-
-  el.style.display =
-    el.style.display === "block"
-    ?
-    "none"
-    :
-    "block";
-
+  el.style.display = el.style.display === "block" ? "none" : "block";
 }
-
 
 window.deleteOrder = async function(id){
-
-  const ok =
-    confirm("Delete order?");
-
+  const ok = confirm("Delete order?");
   if(!ok) return;
-
-  await deleteDoc(
-    doc(db,"orders",id)
-  );
-
+  await deleteDoc(doc(db,"orders",id));
   loadDashboard();
-
 }
-
 
 window.editOrder = async function(id){
-
-  const orderRef =
-    doc(db,"orders",id);
-
-  const orderSnap =
-    await getDoc(orderRef);
-
-  const order =
-    orderSnap.data();
-
+  const orderRef = doc(db,"orders",id);
+  const orderSnap = await getDoc(orderRef);
+  const order = orderSnap.data();
   let text = "";
+  order.items.forEach(item=>{ text += `${item.name},${item.qty},${item.price}\n`; });
 
-  order.items.forEach(item=>{
-
-    text +=
-      `${item.name},${item.qty},${item.price}\n`;
-
-  });
-
-  const result =
-    prompt(
-
-`Edit Items
-
-Format:
-name,qty,price
-
-Example:
-Shiro Matcha,2,9.9
-Basque,1,14.9
-`,
-
-      text
-
-    );
-
+  const result = prompt(`Edit Items\nFormat: name,qty,price\nExample:\nShiro Matcha,2,9.9\nBasque,1,14.9\n`, text);
   if(result === null) return;
-
-  const lines =
-    result
-    .split("\n")
-    .filter(line=>line.trim());
-
-  let items = [];
-  let subtotal = 0;
-
+  const lines = result.split("\n").filter(line=>line.trim());
+  let items = []; let subtotal = 0;
   lines.forEach(line=>{
-
-    const parts =
-      line.split(",");
-
-    const name =
-      parts[0];
-
-    const qty =
-      Number(parts[1]);
-
-    const price =
-      Number(parts[2]);
-
-    if(
-      name
-      &&
-      !isNaN(qty)
-      &&
-      !isNaN(price)
-    ){
-
-      items.push({
-        name,
-        qty,
-        price
-      });
-
-      subtotal +=
-        qty * price;
-
+    const parts = line.split(","); const name = parts[0]; const qty = Number(parts[1]); const price = Number(parts[2]);
+    if(name && !isNaN(qty) && !isNaN(price)){
+      items.push({name,qty,price}); subtotal += qty * price;
     }
-
   });
 
-  const discount =
-    Number(
-      prompt(
-        "Discount RM",
-        order.discount || 0
-      )
-    ) || 0;
-
-  const total =
-    Math.max(
-      0,
-      subtotal - discount
-    );
-
-  const payment =
-    prompt(
-      "Payment Method",
-      order.payment
-    );
-
+  const discount = Number(prompt("Discount RM", order.discount || 0)) || 0;
+  const total = Math.max(0, subtotal - discount);
+  const payment = prompt("Payment Method", order.payment);
   if(payment === null) return;
-
-  const note =
-    prompt(
-      "Order Note",
-      order.note || ""
-    );
-
+  const note = prompt("Order Note", order.note || "");
   if(note === null) return;
 
-  await updateDoc(
-    orderRef,
-    {
-      items,
-      subtotal,
-      discount,
-      total,
-      payment,
-      note
-    }
-  );
-
+  await updateDoc(orderRef, { items, subtotal, discount, total, payment, note });
   loadDashboard();
-
 }
-
 
 // ---------- RECEIPT ----------
-
 function showReceipt(order){
-
-  const now =
-    new Date();
-
+  const now = new Date();
   let html = `
-
     <div class="receipt">
-
-      <div class="receipt-logo">
-        <img src="./logo.png" alt="logo">
-      </div>
-
-      <h2>
-        Matchalogy
-      </h2>
-
-      <p class="receipt-sub">
-        Order #${order.orderNo || ""}
-      </p>
-
-      <p class="receipt-time">
-        ${now.toLocaleString()}
-      </p>
-
+      <div class="receipt-logo"><img src="./logo.png" alt="logo"></div>
+      <h2>Matchalogy</h2>
+      <p class="receipt-sub">Order #${order.orderNo || ""}</p>
+      <p class="receipt-time">${now.toLocaleString()}</p>
       <hr>
-
   `;
-
   order.items.forEach(item=>{
-
-    const modifierHTML =
-      getModifierHTML(item);
-
+    const modifierHTML = getModifierHTML(item);
     html += `
-
       <div class="receipt-item">
-
-        <div>
-
-          <strong>
-            ${escapeHTML(item.name)}
-          </strong>
-
-          ${modifierHTML ? `
-            <small>
-              ${modifierHTML}
-            </small>
-          ` : ""}
-
-        </div>
-
-        <div>
-          x${item.qty}
-          <br>
-          RM ${money((Number(item.price) || 0) * (Number(item.qty) || 0))}
-        </div>
-
+        <div><strong>${escapeHTML(item.name)}</strong>${modifierHTML ? `<small>${modifierHTML}</small>` : ""}</div>
+        <div>x${item.qty}<br>RM ${money((Number(item.price) || 0) * (Number(item.qty) || 0))}</div>
       </div>
-
     `;
-
   });
-
   html += `
-
       <hr>
-
-      ${order.discount > 0 ? `
-
-        <div class="receipt-total">
-          <span>Discount</span>
-          <strong>- RM ${money(order.discount)}</strong>
-        </div>
-
-      ` : ""}
-
-      <div class="receipt-total">
-        <span>Total</span>
-        <strong>RM ${money(order.total)}</strong>
-      </div>
-
-      <p class="receipt-payment">
-        Payment: ${escapeHTML(order.payment || "")}
-      </p>
-
-      ${order.note ? `
-
-        <p>
-          Note: ${escapeHTML(order.note)}
-        </p>
-
-      ` : ""}
-
-      <p class="receipt-thanks">
-        Thank you for visiting 💚
-      </p>
-
+      ${order.discount > 0 ? `<div class="receipt-total"><span>Discount</span><strong>- RM ${money(order.discount)}</strong></div>` : ""}
+      <div class="receipt-total"><span>Total</span><strong>RM ${money(order.total)}</strong></div>
+      <p class="receipt-payment">Payment: ${escapeHTML(order.payment || "")}</p>
+      ${order.note ? `<p>Note: ${escapeHTML(order.note)}</p>` : ""}
+      <p class="receipt-thanks">Thank you for visiting 💚</p>
     </div>
-
   `;
-
   setHTML("receiptContent",html);
-
   show("receiptModal");
-
 }
 
-
-if($("closeReceiptBtn")){
-
-  $("closeReceiptBtn")
-  .addEventListener("click",()=>{
-
-    hide("receiptModal");
-
-  });
-
-}
-
-
-if($("printReceiptBtn")){
-
-  $("printReceiptBtn")
-  .addEventListener("click",()=>{
-
-    window.print();
-
-  });
-
-}
+if($("closeReceiptBtn")){ $("closeReceiptBtn").addEventListener("click",()=>{ hide("receiptModal"); }); }
+if($("printReceiptBtn")){ $("printReceiptBtn").addEventListener("click",()=>{ window.print(); }); }
 
 
 // ---------- CLOSING & MONTHLY REVENUE & REPORT ----------
@@ -1783,12 +782,8 @@ if($("closeDayBtn")){
     const today = new Date().toDateString();
     const snapshot = await getDocs(collection(db,"orders"));
 
-    let revenue = 0;
-    let discount = 0;
-    let orders = 0;
-    let cash = 0;
-    let tng = 0;
-    let shopee = 0;
+    let revenue = 0; let discount = 0; let orders = 0;
+    let cash = 0; let tng = 0; let shopee = 0;
 
     snapshot.forEach((docSnap)=>{
       const order = docSnap.data();
@@ -1796,33 +791,16 @@ if($("closeDayBtn")){
 
       if(orderDate === today){
         const total = Number(order.total) || 0;
-        revenue += total;
-        discount += Number(order.discount) || 0;
-        orders += 1;
-
+        revenue += total; discount += Number(order.discount) || 0; orders += 1;
         if(order.payment === "Cash") cash += total;
         if(order.payment === "TNG") tng += total;
         if(order.payment === "Shopee") shopee += total;
       }
     });
 
-    await addDoc(
-      collection(db,"closings"),
-      {
-        date: today,
-        revenue,
-        discount,
-        orders,
-        cash,
-        tng,
-        shopee,
-        time: new Date()
-      }
-    );
-
+    await addDoc(collection(db,"closings"), { date: today, revenue, discount, orders, cash, tng, shopee, time: new Date() });
     alert("今日账目已成功关闭结清 ✅");
-    loadClosingHistory();
-    loadDashboard();
+    loadClosingHistory(); loadDashboard();
   });
 }
 
@@ -1839,9 +817,7 @@ function renderClosingCards(list){
           <hr style="border:0; border-top:1px dashed #eee; margin:4px 0;">
           💵 Cash: RM ${money(c.cash)} | 🟦 TNG: RM ${money(c.tng)} | 🟧 Shopee: RM ${money(c.shopee)}
         </div>
-        <button class="remove-btn" style="margin-top:8px; padding:2px 8px;" onclick="deleteClosing('${c.id}')">
-          Delete
-        </button>
+        <button class="remove-btn" style="margin-top:8px; padding:2px 8px;" onclick="deleteClosing('${c.id}')">Delete</button>
       </div>
     `;
   });
@@ -1851,14 +827,7 @@ function renderClosingCards(list){
 async function loadClosingHistory(){
   const snapshot = await getDocs(collection(db,"closings"));
   let closings = [];
-
-  snapshot.forEach((docSnap)=>{
-    closings.push({
-      id: docSnap.id,
-      ...docSnap.data()
-    });
-  });
-
+  snapshot.forEach((docSnap)=>{ closings.push({ id: docSnap.id, ...docSnap.data() }); });
   closings.sort((a,b)=> toDate(b.time) - toDate(a.time));
   allClosings = closings;
 
@@ -1867,24 +836,16 @@ async function loadClosingHistory(){
     const date = toDate(c.time);
     const monthKey = `${date.toLocaleString("default",{ month:"long" })} ${date.getFullYear()}`;
     const inputFormat = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-    if(!monthData[monthKey]){
-      monthData[monthKey] = { total: 0, inputVal: inputFormat };
-    }
+    if(!monthData[monthKey]){ monthData[monthKey] = { total: 0, inputVal: inputFormat }; }
     monthData[monthKey].total += Number(c.revenue) || 0;
   });
 
   let monthHTML = "";
   Object.entries(monthData).forEach(([month, data])=>{
     monthHTML += `
-      <div class="closing-card month-revenue-card" 
-           style="cursor:pointer; border-left:4px solid #2e7d32; transition:transform 0.2s;"
-           onclick="quickViewMonthlyReport('${data.inputVal}')"
-           title="点击直接生成此月度深度报表">
+      <div class="closing-card month-revenue-card" style="cursor:pointer; border-left:4px solid #2e7d32; transition:transform 0.2s;" onclick="quickViewMonthlyReport('${data.inputVal}')" title="点击直接生成此月度深度报表">
         <strong>${escapeHTML(month)}</strong>
-        <div style="margin-top: 5px;">
-          Total Revenue: <strong style="color:#2e7d32;">RM ${money(data.total)}</strong>
-        </div>
+        <div style="margin-top: 5px;">Total Revenue: <strong style="color:#2e7d32;">RM ${money(data.total)}</strong></div>
         <small style="color:#777; display:block; margin-top:4px;">📊 点击查看详细月报表</small>
       </div>
     `;
@@ -1895,19 +856,13 @@ async function loadClosingHistory(){
 }
 
 window.quickViewMonthlyReport = function(monthValue) {
-  if($("reportMonth")) {
-    $("reportMonth").value = monthValue;
-    generateMonthlyReport();
-    show("monthlyReportModal");
-  }
+  if($("reportMonth")) { $("reportMonth").value = monthValue; generateMonthlyReport(); show("monthlyReportModal"); }
 };
 
 if($("closingSearch")){
   $("closingSearch").addEventListener("input",()=>{
     const keyword = getValue("closingSearch").toLowerCase();
-    const filtered = allClosings.filter(c=>
-      String(c.date).toLowerCase().includes(keyword)
-    );
+    const filtered = allClosings.filter(c=> String(c.date).toLowerCase().includes(keyword) );
     setHTML("closingHistory", renderClosingCards(filtered));
   });
 }
@@ -1915,53 +870,32 @@ if($("closingSearch")){
 window.deleteClosing = async function(id){
   const ok = confirm("确定要删除这条日结记录吗？");
   if(!ok) return;
-
   await deleteDoc(doc(db,"closings",id));
   loadClosingHistory();
 };
 
 async function generateMonthlyReport(){
   const monthValue = getValue("reportMonth");
-  if(!monthValue){
-    setHTML("monthlyReportContent", "<p style='color:#777;'>请先选择需要查询的月份。</p>");
-    return;
-  }
+  if(!monthValue){ setHTML("monthlyReportContent", "<p style='color:#777;'>请先选择需要查询的月份。</p>"); return; }
 
   const [year, month] = monthValue.split("-").map(Number);
   const snapshot = await getDocs(collection(db,"orders"));
-
-  let revenue = 0;
-  let orders = 0;
-  let discount = 0;
-  let topProducts = {};
-  
-  let cashTotal = 0;
-  let tngTotal = 0;
-  let shopeeTotal = 0;
+  let revenue = 0; let orders = 0; let discount = 0; let topProducts = {};
+  let cashTotal = 0; let tngTotal = 0; let shopeeTotal = 0;
 
   snapshot.forEach(docSnap=>{
-    const order = docSnap.data();
-    const d = toDate(order.time);
-
+    const order = docSnap.data(); const d = toDate(order.time);
     if(d.getFullYear() === year && (d.getMonth() + 1) === month){
       const orderTotal = Number(order.total) || 0;
-      revenue += orderTotal;
-      discount += Number(order.discount) || 0;
-      orders++;
-
+      revenue += orderTotal; discount += Number(order.discount) || 0; orders++;
       if(order.payment === "Cash") cashTotal += orderTotal;
       if(order.payment === "TNG") tngTotal += orderTotal;
       if(order.payment === "Shopee") shopeeTotal += orderTotal;
-
-      (order.items || []).forEach(item=>{
-        topProducts[item.name] = (topProducts[item.name] || 0) + (Number(item.qty) || 0);
-      });
+      (order.items || []).forEach(item=>{ topProducts[item.name] = (topProducts[item.name] || 0) + (Number(item.qty) || 0); });
     }
   });
 
-  const sortedProducts = Object.entries(topProducts)
-    .sort((a,b)=> b[1] - a[1]);
-
+  const sortedProducts = Object.entries(topProducts).sort((a,b)=> b[1] - a[1]);
   $("monthlyReportContent").innerHTML = `
     <div style="border:1px solid #ddd; padding:15px; border-radius:6px; background:#fafafa;">
       <h4 style="margin:0 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">📊 财务总览 (Financial Summary)</h4>
@@ -1970,23 +904,15 @@ async function generateMonthlyReport(){
         <tr><td>总订单数 (Total Orders):</td><td style="text-align:right; font-weight:bold;">${orders} 单</td></tr>
         <tr><td>已给折扣 (Total Discount):</td><td style="text-align:right; color:#c62828;">RM ${money(discount)}</td></tr>
       </table>
-
       <h4 style="margin:15px 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">💳 支付渠道对账 (Payment Channels)</h4>
       <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
         <tr><td>💵 现金支付 (Cash):</td><td style="text-align:right;">RM ${money(cashTotal)}</td></tr>
         <tr><td>🟦 Touch 'n Go (TNG):</td><td style="text-align:right;">RM ${money(tngTotal)}</td></tr>
         <tr><td>🟧 虾皮支付 (ShopeePay):</td><td style="text-align:right;">RM ${money(shopeeTotal)}</td></tr>
       </table>
-
       <h4 style="margin:15px 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">🏆 商品销量排行 (Product Ranking)</h4>
       ${sortedProducts.length === 0 ? '<p style="color:#777; font-size:0.9em;">当月无销售明细</p>' : 
-        sortedProducts.map((item, index)=>`
-          <div style="display:flex; justify-content:space-between; font-size:0.95em; padding:4px 0; border-bottom:1px dashed #eee;">
-            <span>${index + 1}. ${escapeHTML(item[0])}</span>
-            <strong style="color:#4caf50;">x${item[1]}</strong>
-          </div>
-        `).join("")
-      }
+        sortedProducts.map((item, index)=>`<div style="display:flex; justify-content:space-between; font-size:0.95em; padding:4px 0; border-bottom:1px dashed #eee;"><span>${index + 1}. ${escapeHTML(item[0])}</span><strong style="color:#4caf50;">x${item[1]}</strong></div>`).join("")}
     </div>
   `;
 }
@@ -1994,18 +920,10 @@ async function generateMonthlyReport(){
 window.exportMonthlyReportToPDF = function() {
   const reportContent = $("monthlyReportContent").innerHTML;
   const monthValue = getValue("reportMonth");
-  
-  if(!monthValue || reportContent.includes("请先选择") || reportContent.trim() === ""){
-    alert("请先选择一个有效的月份并生成报表后再进行导出。");
-    return;
-  }
-
+  if(!monthValue || reportContent.includes("请先选择") || reportContent.trim() === ""){ alert("请先选择一个有效的月份并生成报表后再进行导出。"); return; }
   const printWindow = window.open("", "_blank");
   printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Matchalogy Monthly Report - ${monthValue}</title>
+    <!DOCTYPE html><html><head><title>Matchalogy Monthly Report - ${monthValue}</title>
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 30px; color: #333; line-height: 1.6; }
         .print-header { text-align: center; margin-bottom: 25px; border-bottom: 3px double #2e7d32; padding-bottom: 10px; }
@@ -2015,125 +933,49 @@ window.exportMonthlyReportToPDF = function() {
         table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         table td { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
         .footer { text-align: center; margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
-        @media print {
-          body { padding: 0; }
-          button { display: none; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="print-header">
-        <h1>Matchalogy Monthly Business Report</h1>
-        <p>月份：${monthValue} | 导出时间：${new Date().toLocaleString()}</p>
-      </div>
-      
+        @media print { body { padding: 0; } button { display: none; } }
+      </style></head><body>
+      <div class="print-header"><h1>Matchalogy Monthly Business Report</h1><p>月份：${monthValue} | 导出时间：${new Date().toLocaleString()}</p></div>
       ${reportContent}
-
-      <div class="footer">
-        Matchalogy POS System · 🟢 经营数据保密自持
-      </div>
-
-      <script>
-        window.onload = function() {
-          window.print();
-          setTimeout(() => { window.close(); }, 500);
-        };
-      <\/script>
-    </body>
-    </html>
+      <div class="footer">Matchalogy POS System · 🟢 经营数据保密自持</div>
+      <script>window.onload = function() { window.print(); setTimeout(() => { window.close(); }, 500); };<\/script></body></html>
   `);
   printWindow.document.close();
 };
 
-if($("monthlyRevenueCard")){
-  $("monthlyRevenueCard").addEventListener("click",()=>{
-    show("monthlyReportModal");
-  });
-}
-
-if($("reportMonth")){
-  $("reportMonth").addEventListener("change", generateMonthlyReport);
-}
-
-if($("closeMonthlyReportBtn")){
-  $("closeMonthlyReportBtn").addEventListener("click", () => hide("monthlyReportModal"));
-}
-
-if($("exportReportBtn")){
-  $("exportReportBtn").addEventListener("click", window.exportMonthlyReportToPDF);
-}
-
+if($("monthlyRevenueCard")){ $("monthlyRevenueCard").addEventListener("click",()=>{ show("monthlyReportModal"); }); }
+if($("reportMonth")){ $("reportMonth").addEventListener("change", generateMonthlyReport); }
+if($("closeMonthlyReportBtn")){ $("closeMonthlyReportBtn").addEventListener("click", () => hide("monthlyReportModal")); }
+if($("exportReportBtn")){ $("exportReportBtn").addEventListener("click", window.exportMonthlyReportToPDF); }
 
 // ---------- SECURE QR PENDING ORDERS ----------
-
 function startPendingOrdersListener(){
-  if(pendingUnsubscribe){
-    pendingUnsubscribe();
-  }
-
-  pendingUnsubscribe =
-    onSnapshot(
-      collection(db,"pendingOrders"),
-      snapshot=>{
-        const pendingList = [];
-        snapshot.forEach(docSnap=>{
-          const order = docSnap.data();
-          if(order.status === "pending"){
-            pendingList.push({
-              id:docSnap.id,
-              ...order
-            });
-          }
-        });
-
-        pendingList.sort((a,b)=> toDate(b.createdAt) - toDate(a.createdAt));
-        renderPendingOrders(pendingList);
-      },
-      error=>{
-        console.error(error);
-        setHTML("pendingOrdersList", "<p>Unable to load QR orders.</p>");
-      }
-    );
+  if(pendingUnsubscribe){ pendingUnsubscribe(); }
+  pendingUnsubscribe = onSnapshot(collection(db,"pendingOrders"), snapshot=>{
+    const pendingList = [];
+    snapshot.forEach(docSnap=>{ const order = docSnap.data(); if(order.status === "pending"){ pendingList.push({ id:docSnap.id, ...order }); } });
+    pendingList.sort((a,b)=> toDate(b.createdAt) - toDate(a.createdAt));
+    renderPendingOrders(pendingList);
+  }, error=>{ console.error(error); setHTML("pendingOrdersList", "<p>Unable to load QR orders.</p>"); });
 }
 
 function renderPendingOrders(list){
   setText("pendingOrderCount", list.length);
   let html = "";
-
   list.forEach(order=>{
     const itemsHTML = (order.items || []).map(item=>`
-        <div>
-          <strong>
-            ${escapeHTML(item.nameSnapshot || "Product")} x${Number(item.qty) || 1}
-          </strong>
-          ${item.milk || item.ice || item.sweet ? `
-              <small><br>${[item.milk, item.ice, item.sweet].filter(Boolean).map(escapeHTML).join(" · ")}</small>
-            ` : ""}
-          ${item.addonName && item.addonName !== "None" ? `
-              <small><br>${escapeHTML(item.addonName)}</small>
-            ` : ""}
-          ${item.note ? `
-              <small><br>Note: ${escapeHTML(item.note)}</small>
-            ` : ""}
+        <div><strong>${escapeHTML(item.nameSnapshot || "Product")} x${Number(item.qty) || 1}</strong>
+          ${item.milk || item.ice || item.sweet ? `<small><br>${[item.milk, item.ice, item.sweet].filter(Boolean).map(escapeHTML).join(" · ")}</small>` : ""}
+          ${item.addonName && item.addonName !== "None" ? `<small><br>${escapeHTML(item.addonName)}</small>` : ""}
+          ${item.note ? `<small><br>Note: ${escapeHTML(item.note)}</small>` : ""}
         </div>
       `).join("");
-
     html += `
       <div class="pending-order-card">
-        <div class="pending-order-header">
-          <span>${escapeHTML(order.customerOrderNo || "QR")}</span>
-          <span>Est. RM ${money(order.estimatedTotal)}</span>
-        </div>
-        <div class="pending-customer">
-          Pickup: <strong>${escapeHTML(order.customerName || "")}</strong>
-          ${order.customerPhone ? `<br>Phone: ${escapeHTML(order.customerPhone)}` : ""}
-        </div>
-        <div class="pending-items">
-          ${itemsHTML}
-        </div>
-        ${order.note ? `
-            <div class="pending-customer">Order Note: ${escapeHTML(order.note)}</div>
-          ` : ""}
+        <div class="pending-order-header"><span>${escapeHTML(order.customerOrderNo || "QR")}</span><span>Est. RM ${money(order.estimatedTotal)}</span></div>
+        <div class="pending-customer">Pickup: <strong>${escapeHTML(order.customerName || "")}</strong>${order.customerPhone ? `<br>Phone: ${escapeHTML(order.customerPhone)}` : ""}</div>
+        <div class="pending-items">${itemsHTML}</div>
+        ${order.note ? `<div class="pending-customer">Order Note: ${escapeHTML(order.note)}</div>` : ""}
         <div class="pending-actions">
           <button onclick="acceptPendingOrder('${order.id}')">Accept & Pay</button>
           <button class="reject-pending-btn" onclick="rejectPendingOrder('${order.id}')">Reject</button>
@@ -2141,19 +983,14 @@ function renderPendingOrders(list){
       </div>
     `;
   });
-
   setHTML("pendingOrdersList", html || "<p>No pending QR orders.</p>");
 }
 
 window.acceptPendingOrder = async function(id){
   const payment = prompt("Payment Method: Cash / TNG / Shopee", "TNG");
   if(payment === null){ return; }
-
   const allowedPayments = ["Cash", "TNG", "Shopee"];
-  if(!allowedPayments.includes(payment)){
-    alert("Please enter Cash, TNG or Shopee.");
-    return;
-  }
+  if(!allowedPayments.includes(payment)){ alert("Please enter Cash, TNG or Shopee."); return; }
 
   const pendingRef = doc(db,"pendingOrders",id);
   const officialOrderRef = doc(collection(db,"orders"));
@@ -2163,20 +1000,15 @@ window.acceptPendingOrder = async function(id){
     await runTransaction(db, async transaction=>{
         const pendingSnap = await transaction.get(pendingRef);
         if(!pendingSnap.exists()){ throw new Error("QR order no longer exists."); }
-
         const pending = pendingSnap.data();
         if(pending.status !== "pending"){ throw new Error("This order has already been handled."); }
-
         const pendingItems = pending.items || [];
         if(pendingItems.length === 0 || pendingItems.length > 30){ throw new Error("Invalid QR order."); }
 
-        const officialItems = [];
-        let subtotal = 0;
-
+        const officialItems = []; let subtotal = 0;
         for(const item of pendingItems){
           const productRef = doc(db, "products", String(item.productId));
           const productSnap = await transaction.get(productRef);
-
           if(!productSnap.exists()){ throw new Error("A product is no longer available."); }
           const product = productSnap.data();
           if(product.available === false){ throw new Error(`${product.name} is sold out.`); }
@@ -2184,576 +1016,170 @@ window.acceptPendingOrder = async function(id){
           const quantity = Math.min(20, Math.max(1, Number(item.qty) || 1));
           const config = getProductModifierConfig(product);
           const requestedAddonCode = String(item.addonCode || "0");
-          const addon = config.showAddon
-            ? config.addonOptions.find(option=>String(option.value) === requestedAddonCode) || config.addonOptions.find(option=>Number(option.price) === 0) || {value:"0",label:"None",price:0}
-            : {value:"0",label:"None",price:0};
-
-          const allowedValue = (value,options,enabled)=>{
-            if(!enabled) return "";
-            const text = String(value || "").slice(0,40);
-            return options.some(option=>String(option.value) === text) ? text : "";
-          };
-
+          const addon = config.showAddon ? config.addonOptions.find(option=>String(option.value) === requestedAddonCode) || config.addonOptions.find(option=>Number(option.price) === 0) || {value:"0",label:"None",price:0} : {value:"0",label:"None",price:0};
+          const allowedValue = (value,options,enabled)=>{ if(!enabled) return ""; const text = String(value || "").slice(0,40); return options.some(option=>String(option.value) === text) ? text : ""; };
           const unitPrice = (Number(product.price) || 0) + (Number(addon.price) || 0);
 
           officialItems.push({
-            productId:productSnap.id,
-            name:product.name || "Product",
-            price:unitPrice,
-            qty:quantity,
-            milk:allowedValue(item.milk,config.milkOptions,config.showMilk),
-            ice:allowedValue(item.ice,config.iceOptions,config.showIce),
-            sweet:allowedValue(item.sweet,config.sweetOptions,config.showSweet),
-            addon:addon.label,
-            addonCode:String(addon.value),
+            productId:productSnap.id, name:product.name || "Product", price:unitPrice, qty:quantity,
+            milk:allowedValue(item.milk,config.milkOptions,config.showMilk), ice:allowedValue(item.ice,config.iceOptions,config.showIce),
+            sweet:allowedValue(item.sweet,config.sweetOptions,config.showSweet), addon:addon.label, addonCode:String(addon.value),
             note:config.showNote ? String(item.note || "").slice(0,200) : ""
           });
-
           subtotal += unitPrice * quantity;
         }
 
         transaction.set(officialOrderRef, {
-            orderNo,
-            items:officialItems,
-            subtotal,
-            discount:0,
-            total:subtotal,
-            payment,
-            note: String(pending.note || "").slice(0,300),
-            source:"QR",
-            customerName: String(pending.customerName || "").slice(0,50),
-            customerPhone: String(pending.customerPhone || "").slice(0,30),
-            customerOrderNo: pending.customerOrderNo || "",
-            time: serverTimestamp()
+            orderNo, items:officialItems, subtotal, discount:0, total:subtotal, payment, note: String(pending.note || "").slice(0,300),
+            source:"QR", customerName: String(pending.customerName || "").slice(0,50), customerPhone: String(pending.customerPhone || "").slice(0,30),
+            customerOrderNo: pending.customerOrderNo || "", time: serverTimestamp()
         });
-
         transaction.update(pendingRef, {
-            status:"accepted",
-            payment,
-            acceptedAt: serverTimestamp(),
-            officialOrderNo: orderNo,
-            officialOrderId: officialOrderRef.id,
-            finalTotal: subtotal
+            status:"accepted", payment, acceptedAt: serverTimestamp(), officialOrderNo: orderNo, officialOrderId: officialOrderRef.id, finalTotal: subtotal
         });
     });
-
     alert(`QR order accepted ✅\nOrder #${orderNo}`);
     loadDashboard();
-
   }catch(error){
-    console.error(error);
-    alert(error.message || "Unable to accept this order.");
+    console.error(error); alert(error.message || "Unable to accept this order.");
   }
 }
 
 window.rejectPendingOrder = async function(id){
   const reason = prompt("Reason for rejection", "Item unavailable");
   if(reason === null){ return; }
-
-  await updateDoc(doc(db,"pendingOrders",id), {
-      status:"rejected",
-      rejectReason: String(reason).slice(0,200),
-      rejectedAt: serverTimestamp()
-  });
+  await updateDoc(doc(db,"pendingOrders",id), { status:"rejected", rejectReason: String(reason).slice(0,200), rejectedAt: serverTimestamp() });
 }
 
 // ---------- STORE OPEN / CLOSED ----------
-
 let storeOpenState = true;
-
 function renderStoreStatusButton(){
   const button = $("storeStatusBtn");
   if(!button){ return; }
-
   button.classList.remove("store-open", "store-closed");
-
-  if(storeOpenState){
-    button.classList.add("store-open");
-    button.innerText = "Store: Open";
-  }else{
-    button.classList.add("store-closed");
-    button.innerText = "Store: Closed";
-  }
+  if(storeOpenState){ button.classList.add("store-open"); button.innerText = "Store: Open"; }
+  else{ button.classList.add("store-closed"); button.innerText = "Store: Closed"; }
 }
 
 async function loadStoreStatus(){
   try{
     const snapshot = await getDoc(doc(db,"settings","store"));
-    if(snapshot.exists()){
-      storeOpenState = snapshot.data().open !== false;
-    }else{
-      storeOpenState = true;
-    }
+    if(snapshot.exists()){ storeOpenState = snapshot.data().open !== false; }else{ storeOpenState = true; }
     renderStoreStatusButton();
   }catch(error){
-    console.error(error);
-    const button = $("storeStatusBtn");
-    if(button){ button.innerText = "Status Error"; }
+    console.error(error); const button = $("storeStatusBtn"); if(button){ button.innerText = "Status Error"; }
   }
 }
 
 if($("storeStatusBtn")){
   $("storeStatusBtn").addEventListener("click",async()=>{
-    if(!["owner","manager"].includes(currentStaffRole)){
-      alert("Only owner or manager can change store status.");
-      return;
-    }
-
-    const button = $("storeStatusBtn");
-    const newStatus = !storeOpenState;
-
-    button.disabled = true;
-    button.innerText = "Updating...";
-
+    if(!["owner","manager"].includes(currentStaffRole)){ alert("Only owner or manager can change store status."); return; }
+    const button = $("storeStatusBtn"); const newStatus = !storeOpenState;
+    button.disabled = true; button.innerText = "Updating...";
     try{
-      await setDoc(doc(db,"settings","store"), {
-          open:newStatus,
-          updatedAt: serverTimestamp(),
-          updatedBy: auth.currentUser ? auth.currentUser.uid : ""
-        }, { merge:true }
-      );
-
-      storeOpenState = newStatus;
-      renderStoreStatusButton();
+      await setDoc(doc(db,"settings","store"), { open:newStatus, updatedAt: serverTimestamp(), updatedBy: auth.currentUser ? auth.currentUser.uid : "" }, { merge:true });
+      storeOpenState = newStatus; renderStoreStatusButton();
       alert(newStatus ? "Customer ordering is now OPEN." : "Customer ordering is now CLOSED.");
-
     }catch(error){
-      console.error(error);
-      alert("Unable to change store status.");
-      renderStoreStatusButton();
-    }finally{
-      button.disabled = false;
-    }
+      console.error(error); alert("Unable to change store status."); renderStoreStatusButton();
+    }finally{ button.disabled = false; }
   });
 }
+
 // ---------- STAFF AUTH ----------
-
 async function startPOSForStaff(user){
-
-  const staffSnap =
-    await getDoc(
-      doc(db,"users",user.uid)
-    );
-
-  if(!staffSnap.exists()){
-
-    await signOut(auth);
-
-    alert("This account is not registered as staff.");
-
-    return;
-
-  }
-
-  const staff =
-    staffSnap.data();
-
-  const allowedRoles = [
-    "owner",
-    "manager",
-    "cashier"
-  ];
-
-  if(
-    staff.active !== true
-    ||
-    !allowedRoles.includes(staff.role)
-  ){
-
-    await signOut(auth);
-
-    alert("This staff account is inactive.");
-
-    return;
-
-  }
-
-  currentStaffRole =
-    staff.role;
-
+  const staffSnap = await getDoc(doc(db,"users",user.uid));
+  if(!staffSnap.exists()){ await signOut(auth); alert("This account is not registered as staff."); return; }
+  const staff = staffSnap.data();
+  const allowedRoles = ["owner", "manager", "cashier"];
+  if(staff.active !== true || !allowedRoles.includes(staff.role)){ await signOut(auth); alert("This staff account is inactive."); return; }
+  currentStaffRole = staff.role;
   hide("staffLoginModal");
 
-  if(appStarted){
-    return;
-  }
-
+  if(appStarted){ return; }
   appStarted = true;
 
-loadProducts();
-loadDashboard();
-loadClosingHistory();
-startPendingOrdersListener();
-await loadStoreStatus();
-
+  loadProducts();
+  loadDashboard();
+  loadClosingHistory();
+  startPendingOrdersListener();
+  await loadStoreStatus();
 }
-
-async function generateMonthlyReport(){
-
-  const monthValue =
-    $("reportMonth").value;
-
-  if(!monthValue){
-    return;
-  }
-
-  const [
-    year,
-    month
-  ] =
-  monthValue
-  .split("-")
-  .map(Number);
-
-  const snapshot =
-    await getDocs(
-      collection(db,"orders")
-    );
-
-  let revenue = 0;
-  let orders = 0;
-  let discount = 0;
-
-  let top = {};
-
-  snapshot.forEach(docSnap=>{
-
-    const order =
-      docSnap.data();
-
-    const d =
-      toDate(order.time);
-
-    if(
-      d.getFullYear() === year
-      &&
-      d.getMonth()+1 === month
-    ){
-
-      revenue +=
-        Number(order.total) || 0;
-
-      discount +=
-        Number(order.discount) || 0;
-
-      orders++;
-
-      order.items.forEach(item=>{
-
-        top[item.name] =
-          (top[item.name] || 0)
-          +
-          (Number(item.qty) || 0);
-
-      });
-
-    }
-
-  });
-
-  const top3 =
-    Object.entries(top)
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,3);
-
-  $("monthlyReportContent")
-  .innerHTML = `
-
-    <h3>
-      Revenue
-    </h3>
-
-    <p>
-      RM ${money(revenue)}
-    </p>
-
-    <h3>
-      Orders
-    </h3>
-
-    <p>
-      ${orders}
-    </p>
-
-    <h3>
-      Discount
-    </h3>
-
-    <p>
-      RM ${money(discount)}
-    </p>
-
-    <hr>
-
-    <h3>
-      Top Selling
-    </h3>
-
-    ${top3.map(
-      (item,index)=>`
-
-        <div>
-
-          ${index+1}.
-          ${item[0]}
-          x${item[1]}
-
-        </div>
-
-      `
-    ).join("")}
-
-  `;
-
-}
-if($("monthlyRevenueCard")){
-
-  $("monthlyRevenueCard")
-  .addEventListener(
-    "click",
-    ()=>{
-
-      show(
-        "monthlyReportModal"
-      );
-
-    }
-  );
-
-}
-
-if($("reportMonth")){
-
-  $("reportMonth")
-  .addEventListener(
-    "change",
-    generateMonthlyReport
-  );
-
-}
-
 
 if($("staffLoginBtn")){
-
-  $("staffLoginBtn")
-  .addEventListener("click",async()=>{
-
-    const email =
-      getValue("staffEmail").trim();
-
-    const password =
-      getValue("staffPassword");
-
+  $("staffLoginBtn").addEventListener("click",async()=>{
+    const email = getValue("staffEmail").trim();
+    const password = getValue("staffPassword");
     setText("staffLoginError","");
-
-    if(!email || !password){
-
-      setText(
-        "staffLoginError",
-        "Please enter email and password."
-      );
-
-      return;
-
-    }
+    if(!email || !password){ setText("staffLoginError", "Please enter email and password."); return; }
 
     $("staffLoginBtn").disabled = true;
     $("staffLoginBtn").innerText = "Logging in...";
-
     try{
-
-      await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
+      await signInWithEmailAndPassword(auth, email, password);
     }catch(error){
-
-      console.error(error);
-
-      setText(
-        "staffLoginError",
-        "Login failed. Check your email and password."
-      );
-
+      console.error(error); setText("staffLoginError", "Login failed. Check your email and password.");
     }finally{
-
-      $("staffLoginBtn").disabled = false;
-      $("staffLoginBtn").innerText = "Log In";
-
+      $("staffLoginBtn").disabled = false; $("staffLoginBtn").innerText = "Log In";
     }
-
   });
-
 }
-
 
 if($("logoutBtn")){
-
-  $("logoutBtn")
-  .addEventListener("click",async()=>{
-
-    if(pendingUnsubscribe){
-      pendingUnsubscribe();
-      pendingUnsubscribe = null;
-    }
-
-    appStarted = false;
-    currentStaffRole = "";
-
+  $("logoutBtn").addEventListener("click",async()=>{
+    if(pendingUnsubscribe){ pendingUnsubscribe(); pendingUnsubscribe = null; }
+    appStarted = false; currentStaffRole = "";
     await signOut(auth);
-
   });
-
 }
 
-
-onAuthStateChanged(
-  auth,
-  async user=>{
-
-    if(user){
-
-      try{
-
-        await startPOSForStaff(user);
-
-      }catch(error){
-
-        console.error(error);
-
-        await signOut(auth);
-
-        show("staffLoginModal");
-
-      }
-
-    }else{
-
-      show("staffLoginModal");
-
-    }
-
+onAuthStateChanged(auth, async user=>{
+  if(user){
+    try{ await startPOSForStaff(user); }
+    catch(error){ console.error(error); await signOut(auth); show("staffLoginModal"); }
+  }else{
+    show("staffLoginModal");
   }
-);
+});
 
-// ---------- START ----------
-
+// ---------- START (SALES MODAL VIEW) ----------
 if($("openSalesBtn")){
-
-  $("openSalesBtn")
-  .addEventListener("click",()=>{
-
-    setHTML(
-      "allSalesList",
-      renderFullSales(fullMonthSales)
-    );
-
-    $("showMonthSalesBtn")
-      .classList.add("active");
-
-    $("showAllSalesBtn")
-      .classList.remove("active");
-
+  $("openSalesBtn").addEventListener("click",()=>{
+    setHTML("allSalesList", renderFullSales(fullMonthSales));
+    if($("showMonthSalesBtn")) $("showMonthSalesBtn").classList.add("active");
+    if($("showAllSalesBtn")) $("showAllSalesBtn").classList.remove("active");
     show("salesModal");
+  });
+}
 
 if($("salesSearch")){
-
-  $("salesSearch")
-  .addEventListener("input",()=>{
-
-    const keyword =
-      getValue("salesSearch")
-      .trim()
-      .toLowerCase();
-
-    const source =
-      currentSalesView === "all"
-      ? fullAllTimeSales
-      : fullMonthSales;
-
+  $("salesSearch").addEventListener("input",()=>{
+    const keyword = getValue("salesSearch").trim().toLowerCase();
+    const source = currentSalesView === "all" ? fullAllTimeSales : fullMonthSales;
     const filtered = {};
-
-    Object.entries(source)
-    .forEach(([name,qty])=>{
-
-      if(
-        name
-        .toLowerCase()
-        .includes(keyword)
-      ){
-        filtered[name] = qty;
-      }
-
+    Object.entries(source).forEach(([name,qty])=>{
+      if(name.toLowerCase().includes(keyword)){ filtered[name] = qty; }
     });
-
-    setHTML(
-      "allSalesList",
-      renderFullSales(filtered)
-    );
-
+    setHTML("allSalesList", renderFullSales(filtered));
   });
-
 }
-
-  });
-
-}
-
 
 if($("showMonthSalesBtn")){
-
-  $("showMonthSalesBtn")
-  .addEventListener("click",()=>{
-
-currentSalesView = "month";
-
-    setHTML(
-      "allSalesList",
-      renderFullSales(fullMonthSales)
-    );
-
-    $("showMonthSalesBtn")
-      .classList.add("active");
-
-    $("showAllSalesBtn")
-      .classList.remove("active");
-
+  $("showMonthSalesBtn").addEventListener("click",()=>{
+    currentSalesView = "month";
+    setHTML("allSalesList", renderFullSales(fullMonthSales));
+    $("showMonthSalesBtn").classList.add("active");
+    $("showAllSalesBtn").classList.remove("active");
   });
-
 }
-
 
 if($("showAllSalesBtn")){
-
-  $("showAllSalesBtn")
-  .addEventListener("click",()=>{
-
-currentSalesView = "all";
-
-    setHTML(
-      "allSalesList",
-      renderFullSales(fullAllTimeSales)
-    );
-
-    $("showAllSalesBtn")
-      .classList.add("active");
-
-    $("showMonthSalesBtn")
-      .classList.remove("active");
-
+  $("showAllSalesBtn").addEventListener("click",()=>{
+    currentSalesView = "all";
+    setHTML("allSalesList", renderFullSales(fullAllTimeSales));
+    $("showAllSalesBtn").classList.add("active");
+    $("showMonthSalesBtn").classList.remove("active");
   });
-
 }
 
-
-if($("closeSalesBtn")){
-
-  $("closeSalesBtn")
-  .addEventListener("click",()=>{
-
-    hide("salesModal");
-
-  });
-
-}
+if($("closeSalesBtn")){ $("closeSalesBtn").addEventListener("click",()=>{ hide("salesModal"); }); }
