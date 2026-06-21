@@ -548,3 +548,34 @@ button{
 #logoutBtn:hover{
   background:#dedede;
 }
+.cart-header-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+}
+
+#storeStatusBtn{
+  width:auto;
+  margin:0;
+  padding:8px 13px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+#storeStatusBtn.store-open{
+  background:#e3f3e3;
+  color:#236126;
+}
+
+#storeStatusBtn.store-closed{
+  background:#f4e3e1;
+  color:#922b24;
+}
+
+#storeStatusBtn:disabled{
+  opacity:0.6;
+  cursor:not-allowed;
+}

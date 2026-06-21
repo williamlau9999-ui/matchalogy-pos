@@ -7,6 +7,7 @@ import {
   addDoc,
   getDocs,
   getDoc,
+  setDoc,
   deleteDoc,
   doc,
   updateDoc,
@@ -2410,6 +2411,166 @@ async function(id){
 
 }
 
+// ---------- STORE OPEN / CLOSED ----------
+
+let storeOpenState = true;
+
+
+function renderStoreStatusButton(){
+
+  const button =
+    $("storeStatusBtn");
+
+  if(!button){
+    return;
+  }
+
+  button.classList.remove(
+    "store-open",
+    "store-closed"
+  );
+
+  if(storeOpenState){
+
+    button.classList.add(
+      "store-open"
+    );
+
+    button.innerText =
+      "Store: Open";
+
+  }else{
+
+    button.classList.add(
+      "store-closed"
+    );
+
+    button.innerText =
+      "Store: Closed";
+
+  }
+
+}
+
+
+async function loadStoreStatus(){
+
+  try{
+
+    const snapshot =
+      await getDoc(
+        doc(db,"settings","store")
+      );
+
+    if(snapshot.exists()){
+
+      storeOpenState =
+        snapshot.data().open !== false;
+
+    }else{
+
+      storeOpenState = true;
+
+    }
+
+    renderStoreStatusButton();
+
+  }catch(error){
+
+    console.error(error);
+
+    const button =
+      $("storeStatusBtn");
+
+    if(button){
+      button.innerText =
+        "Status Error";
+    }
+
+  }
+
+}
+
+
+if($("storeStatusBtn")){
+
+  $("storeStatusBtn")
+  .addEventListener("click",async()=>{
+
+    if(
+      !["owner","manager"]
+      .includes(currentStaffRole)
+    ){
+
+      alert(
+        "Only owner or manager can change store status."
+      );
+
+      return;
+
+    }
+
+    const button =
+      $("storeStatusBtn");
+
+    const newStatus =
+      !storeOpenState;
+
+    button.disabled = true;
+    button.innerText =
+      "Updating...";
+
+    try{
+
+      await setDoc(
+        doc(db,"settings","store"),
+        {
+          open:newStatus,
+
+          updatedAt:
+            serverTimestamp(),
+
+          updatedBy:
+            auth.currentUser
+            ? auth.currentUser.uid
+            : ""
+        },
+        {
+          merge:true
+        }
+      );
+
+      storeOpenState =
+        newStatus;
+
+      renderStoreStatusButton();
+
+      alert(
+        newStatus
+        ? "Customer ordering is now OPEN."
+        : "Customer ordering is now CLOSED."
+      );
+
+    }catch(error){
+
+      console.error(error);
+
+      alert(
+        "Unable to change store status."
+      );
+
+      renderStoreStatusButton();
+
+    }finally{
+
+      button.disabled = false;
+
+    }
+
+  });
+
+}
+
 // ---------- STAFF AUTH ----------
 
 async function startPOSForStaff(user){
@@ -2463,10 +2624,11 @@ async function startPOSForStaff(user){
 
   appStarted = true;
 
-  loadProducts();
-  loadDashboard();
-  loadClosingHistory();
-  startPendingOrdersListener();
+loadProducts();
+loadDashboard();
+loadClosingHistory();
+startPendingOrdersListener();
+await loadStoreStatus();
 
 }
 
