@@ -742,6 +742,27 @@
 
 </div>
 
+<div id="monthlyReportModal" class="report-modal" style="display:none;">
+    <div class="report-modal-content">
+      <div class="report-modal-header">
+        <h2>📊 月度销售与财务深度报表</h2>
+        <span id="closeMonthlyReportBtn" class="report-modal-close">&times;</span>
+      </div>
+      
+      <div class="report-modal-actions-bar">
+        <div class="month-select-group">
+          <label for="reportMonth">选择查询月份: </label>
+          <input type="month" id="reportMonth">
+        </div>
+        <button id="exportReportBtn" class="report-export-btn">📄 导出 PDF / 打印报表</button>
+      </div>
+
+      <div id="monthlyReportContent">
+        <p style="color:#777; text-align: center; padding: 40px 0;">请在上方选择一个月份以生成深度数据报表...</p>
+      </div>
+    </div>
+  </div>
+
 </body>
 
 </html>

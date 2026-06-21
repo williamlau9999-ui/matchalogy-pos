@@ -1468,19 +1468,11 @@ const peak =
     (a,b)=>b[1]-a[1]
   )[0];
 
-if(
-  peak
-  &&
-  $("peakHour")
-){
-
-  setText(
-    "peakHour",
-    `${peak[0]}:00`
-  );
-
-}
-
+if(peak && $("peakHour")){
+  const startHour = Number(peak[0]);
+  const endHour = startHour + 2;
+  const timeRangeString = `${startHour.toString().padStart(2, '0')}:00 - ${endHour.toString().padStart(2, '0')}:00`;
+  setText("peakHour", timeRangeString);
 }
 
 
@@ -1781,67 +1773,37 @@ if($("printReceiptBtn")){
 }
 
 
-// ---------- CLOSING ----------
+// ---------- CLOSING & MONTHLY REVENUE & REPORT ----------
 
 if($("closeDayBtn")){
-
-  $("closeDayBtn")
-  .addEventListener("click",async()=>{
-
-    const ok =
-      confirm("Close today?");
-
+  $("closeDayBtn").addEventListener("click",async()=>{
+    const ok = confirm("确定要对今天进行结账关闭吗？");
     if(!ok) return;
 
-    const today =
-      new Date().toDateString();
-
-    const snapshot =
-      await getDocs(collection(db,"orders"));
+    const today = new Date().toDateString();
+    const snapshot = await getDocs(collection(db,"orders"));
 
     let revenue = 0;
     let discount = 0;
     let orders = 0;
-
     let cash = 0;
     let tng = 0;
     let shopee = 0;
 
     snapshot.forEach((docSnap)=>{
-
-      const order =
-        docSnap.data();
-
-      const orderDate =
-        toDate(order.time)
-        .toDateString();
+      const order = docSnap.data();
+      const orderDate = toDate(order.time).toDateString();
 
       if(orderDate === today){
-
-        const total =
-          Number(order.total) || 0;
-
+        const total = Number(order.total) || 0;
         revenue += total;
-
-        discount +=
-          Number(order.discount) || 0;
-
+        discount += Number(order.discount) || 0;
         orders += 1;
 
-        if(order.payment === "Cash"){
-          cash += total;
-        }
-
-        if(order.payment === "TNG"){
-          tng += total;
-        }
-
-        if(order.payment === "Shopee"){
-          shopee += total;
-        }
-
+        if(order.payment === "Cash") cash += total;
+        if(order.payment === "TNG") tng += total;
+        if(order.payment === "Shopee") shopee += total;
       }
-
     });
 
     await addDoc(
@@ -1854,863 +1816,263 @@ if($("closeDayBtn")){
         cash,
         tng,
         shopee,
-        time:new Date()
+        time: new Date()
       }
     );
 
-    alert("Day Closed ✅");
-
+    alert("今日账目已成功关闭结清 ✅");
     loadClosingHistory();
-
+    loadDashboard(); // 顺便刷新主面板数据
   });
-
 }
-
 
 function renderClosingCards(list){
-
   let html = "";
-
   list.forEach(c=>{
-
     html += `
-
       <div class="closing-card">
-
-        <strong>
-          ${escapeHTML(c.date)}
-        </strong>
-
-        Revenue: RM ${money(c.revenue)}
-        <br>
-
-        Discount: RM ${money(c.discount)}
-        <br>
-
-        Orders: ${c.orders}
-        <br>
-
-        Cash: RM ${money(c.cash)}
-        <br>
-
-        TNG: RM ${money(c.tng)}
-        <br>
-
-        Shopee: RM ${money(c.shopee)}
-
-        <button onclick="deleteClosing('${c.id}')">
+        <strong>${escapeHTML(c.date)}</strong>
+        <div style="margin-top: 5px; font-size: 0.9em; line-height: 1.5;">
+          Revenue: <span style="color:#2e7d32; font-weight:bold;">RM ${money(c.revenue)}</span><br>
+          Discount: RM ${money(c.discount)}<br>
+          Orders: ${c.orders}<br>
+          <hr style="border:0; border-top:1px dashed #eee; margin:4px 0;">
+          💵 Cash: RM ${money(c.cash)} | 🟦 TNG: RM ${money(c.tng)} | 🟧 Shopee: RM ${money(c.shopee)}
+        </div>
+        <button class="remove-btn" style="margin-top:8px; padding:2px 8px;" onclick="deleteClosing('${c.id}')">
           Delete
         </button>
-
       </div>
-
     `;
-
   });
-
   return html;
-
 }
 
-
 async function loadClosingHistory(){
-
-  const snapshot =
-    await getDocs(collection(db,"closings"));
-
+  const snapshot = await getDocs(collection(db,"closings"));
   let closings = [];
 
   snapshot.forEach((docSnap)=>{
-
     closings.push({
-      id:docSnap.id,
+      id: docSnap.id,
       ...docSnap.data()
     });
-
   });
 
-  closings.sort((a,b)=>{
-
-    return toDate(b.time) - toDate(a.time);
-
-  });
-
+  closings.sort((a,b)=> toDate(b.time) - toDate(a.time));
   allClosings = closings;
 
+  // 1. 核心改进：聚合更全面的月度总数据
   let monthData = {};
-
   closings.forEach(c=>{
-
-    const date =
-      toDate(c.time);
-
-    const monthKey =
-      `${date.toLocaleString("default",{
-        month:"long"
-      })} ${date.getFullYear()}`;
+    const date = toDate(c.time);
+    const monthKey = `${date.toLocaleString("default",{ month:"long" })} ${date.getFullYear()}`;
+    // 建立一个标准格式，为快捷报表生成做准备
+    const inputFormat = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
     if(!monthData[monthKey]){
-      monthData[monthKey] = 0;
+      monthData[monthKey] = { total: 0, inputVal: inputFormat };
     }
-
-    monthData[monthKey] +=
-      Number(c.revenue) || 0;
-
+    monthData[monthKey].total += Number(c.revenue) || 0;
   });
 
+  // 2. 渲染动态的 Monthly Revenue 区域，并为其注入一键查看月度报表的快捷动作
   let monthHTML = "";
-
-  Object.entries(monthData)
-  .forEach(([month,total])=>{
-
+  Object.entries(monthData).forEach(([month, data])=>{
     monthHTML += `
-
-      <div class="closing-card">
-
+      <div class="closing-card month-revenue-card" 
+           style="cursor:pointer; border-left:4px solid #2e7d32; transition:transform 0.2s;"
+           onclick="quickViewMonthlyReport('${data.inputVal}')"
+           title="点击直接生成此月度深度报表">
         <strong>${escapeHTML(month)}</strong>
-
-        Revenue:
-        RM ${money(total)}
-
+        <div style="margin-top: 5px;">
+          Total Revenue: <strong style="color:#2e7d32;">RM ${money(data.total)}</strong>
+        </div>
+        <small style="color:#777; display:block; margin-top:4px;">📊 点击查看详细月报表</small>
       </div>
-
     `;
-
   });
 
-  setHTML("monthlyRevenue",monthHTML);
-
-  setHTML(
-    "closingHistory",
-    renderClosingCards(closings)
-  );
-
+  setHTML("monthlyRevenue", monthHTML || '<div style="color:#777;">暂无月营收数据</div>');
+  setHTML("closingHistory", renderClosingCards(closings));
 }
 
+// 提供快捷卡片点击触发生成月报表
+window.quickViewMonthlyReport = function(monthValue) {
+  if($("reportMonth")) {
+    $("reportMonth").value = monthValue;
+    generateMonthlyReport();
+    show("monthlyReportModal");
+  }
+};
 
 if($("closingSearch")){
-
-  $("closingSearch")
-  .addEventListener("input",()=>{
-
-    const keyword =
-      getValue("closingSearch")
-      .toLowerCase();
-
-    const filtered =
-      allClosings.filter(c=>
-        String(c.date)
-        .toLowerCase()
-        .includes(keyword)
-      );
-
-    setHTML(
-      "closingHistory",
-      renderClosingCards(filtered)
+  $("closingSearch").addEventListener("input",()=>{
+    const keyword = getValue("closingSearch").toLowerCase();
+    const filtered = allClosings.filter(c=>
+      String(c.date).toLowerCase().includes(keyword)
     );
-
+    setHTML("closingHistory", renderClosingCards(filtered));
   });
-
 }
-
 
 window.deleteClosing = async function(id){
-
-  const ok =
-    confirm("Delete this closing record?");
-
+  const ok = confirm("确定要删除这条日结记录吗？");
   if(!ok) return;
 
-  await deleteDoc(
-    doc(db,"closings",id)
-  );
-
+  await deleteDoc(doc(db,"closings",id));
   loadClosingHistory();
+};
 
-}
-
-
-if($("openMonthlyBtn")){
-
-  $("openMonthlyBtn")
-  .addEventListener("click",()=>{
-
-    show("monthlyModal");
-
-  });
-
-}
-
-
-if($("closeMonthlyBtn")){
-
-  $("closeMonthlyBtn")
-  .addEventListener("click",()=>{
-
-    hide("monthlyModal");
-
-  });
-
-}
-
-// ---------- SECURE QR PENDING ORDERS ----------
-
-
-function startPendingOrdersListener(){
-
-  if(pendingUnsubscribe){
-    pendingUnsubscribe();
+// 3. 增强版月度深度报表生成系统
+async function generateMonthlyReport(){
+  const monthValue = getValue("reportMonth"); // 格式: "2026-06"
+  if(!monthValue){
+    setHTML("monthlyReportContent", "<p style='color:#777;'>请先选择需要查询的月份。</p>");
+    return;
   }
 
-  pendingUnsubscribe =
-    onSnapshot(
-      collection(db,"pendingOrders"),
-      snapshot=>{
+  const [year, month] = monthValue.split("-").map(Number);
+  const snapshot = await getDocs(collection(db,"orders"));
 
-        const pendingList = [];
+  let revenue = 0;
+  let orders = 0;
+  let discount = 0;
+  let topProducts = {};
+  
+  let cashTotal = 0;
+  let tngTotal = 0;
+  let shopeeTotal = 0;
 
-        snapshot.forEach(docSnap=>{
+  snapshot.forEach(docSnap=>{
+    const order = docSnap.data();
+    const d = toDate(order.time);
 
-          const order =
-            docSnap.data();
+    if(d.getFullYear() === year && (d.getMonth() + 1) === month){
+      const orderTotal = Number(order.total) || 0;
+      revenue += orderTotal;
+      discount += Number(order.discount) || 0;
+      orders++;
 
-          if(order.status === "pending"){
+      if(order.payment === "Cash") cashTotal += orderTotal;
+      if(order.payment === "TNG") tngTotal += orderTotal;
+      if(order.payment === "Shopee") shopeeTotal += orderTotal;
 
-            pendingList.push({
-              id:docSnap.id,
-              ...order
-            });
+      (order.items || []).forEach(item=>{
+        topProducts[item.name] = (topProducts[item.name] || 0) + (Number(item.qty) || 0);
+      });
+    }
+  });
 
-          }
+  const sortedProducts = Object.entries(topProducts)
+    .sort((a,b)=> b[1] - a[1]);
 
-        });
+  // 生成漂亮的内部内容，方便打印和浏览
+  $("monthlyReportContent").innerHTML = `
+    <div style="border:1px solid #ddd; padding:15px; border-radius:6px; background:#fafafa;">
+      <h4 style="margin:0 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">📊 财务总览 (Financial Summary)</h4>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
+        <tr><td>总营业额 (Revenue):</td><td style="text-align:right; font-weight:bold; color:#2e7d32;">RM ${money(revenue)}</td></tr>
+        <tr><td>总订单数 (Total Orders):</td><td style="text-align:right; font-weight:bold;">${orders} 单</td></tr>
+        <tr><td>已给折扣 (Total Discount):</td><td style="text-align:right; color:#c62828;">RM ${money(discount)}</td></tr>
+      </table>
 
-        pendingList.sort((a,b)=>
-          toDate(b.createdAt)
-          -
-          toDate(a.createdAt)
-        );
+      <h4 style="margin:15px 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">💳 支付渠道对账 (Payment Channels)</h4>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
+        <tr><td>💵 现金支付 (Cash):</td><td style="text-align:right;">RM ${money(cashTotal)}</td></tr>
+        <tr><td>🟦 Touch 'n Go (TNG):</td><td style="text-align:right;">RM ${money(tngTotal)}</td></tr>
+        <tr><td>🟧 虾皮支付 (ShopeePay):</td><td style="text-align:right;">RM ${money(shopeeTotal)}</td></tr>
+      </table>
 
-        renderPendingOrders(
-          pendingList
-        );
-
-      },
-      error=>{
-
-        console.error(error);
-
-        setHTML(
-          "pendingOrdersList",
-          "<p>Unable to load QR orders.</p>"
-        );
-
+      <h4 style="margin:15px 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">🏆 商品销量排行 (Product Ranking)</h4>
+      ${sortedProducts.length === 0 ? '<p style="color:#777; font-size:0.9em;">当月无销售明细</p>' : 
+        sortedProducts.map((item, index)=>`
+          <div style="display:flex; justify-content:space-between; font-size:0.95em; padding:4px 0; border-bottom:1px dashed #eee;">
+            <span>${index + 1}. ${escapeHTML(item[0])}</span>
+            <strong style="color:#4caf50;">x${item[1]}</strong>
+          </div>
+        `).join("")
       }
-    );
-
+    </div>
+  `;
 }
 
+// 4. 核心新增：一键纯净导出 PDF / 打印报表功能
+window.exportMonthlyReportToPDF = function() {
+  const reportContent = $("monthlyReportContent").innerHTML;
+  const monthValue = getValue("reportMonth");
+  
+  if(!monthValue || reportContent.includes("请先选择") || reportContent.trim() === ""){
+    alert("请先选择一个有效的月份并生成报表后再进行导出。");
+    return;
+  }
 
-function renderPendingOrders(list){
-
-  setText(
-    "pendingOrderCount",
-    list.length
-  );
-
-  let html = "";
-
-  list.forEach(order=>{
-
-    const itemsHTML =
-      (order.items || [])
-      .map(item=>`
-
-        <div>
-
-          <strong>
-            ${escapeHTML(
-              item.nameSnapshot || "Product"
-            )}
-            x${Number(item.qty) || 1}
-          </strong>
-
-          ${
-            item.milk
-            || item.ice
-            || item.sweet
-            ? `
-
-              <small>
-                <br>
-                ${
-                  [
-                    item.milk,
-                    item.ice,
-                    item.sweet
-                  ]
-                  .filter(Boolean)
-                  .map(escapeHTML)
-                  .join(" · ")
-                }
-              </small>
-
-            `
-            : ""
-          }
-
-          ${
-            item.addonName
-            &&
-            item.addonName !== "None"
-            ? `
-
-              <small>
-                <br>
-                ${escapeHTML(item.addonName)}
-              </small>
-
-            `
-            : ""
-          }
-
-          ${
-            item.note
-            ? `
-
-              <small>
-                <br>
-                Note:
-                ${escapeHTML(item.note)}
-              </small>
-
-            `
-            : ""
-          }
-
-        </div>
-
-      `)
-      .join("");
-
-
-    html += `
-
-      <div class="pending-order-card">
-
-        <div class="pending-order-header">
-
-          <span>
-            ${escapeHTML(
-              order.customerOrderNo || "QR"
-            )}
-          </span>
-
-          <span>
-            Est. RM
-            ${money(order.estimatedTotal)}
-          </span>
-
-        </div>
-
-        <div class="pending-customer">
-
-          Pickup:
-          <strong>
-            ${escapeHTML(
-              order.customerName || ""
-            )}
-          </strong>
-
-          ${
-            order.customerPhone
-            ? `
-
-              <br>
-              Phone:
-              ${escapeHTML(order.customerPhone)}
-
-            `
-            : ""
-          }
-
-        </div>
-
-        <div class="pending-items">
-          ${itemsHTML}
-        </div>
-
-        ${
-          order.note
-          ? `
-
-            <div class="pending-customer">
-              Order Note:
-              ${escapeHTML(order.note)}
-            </div>
-
-          `
-          : ""
+  // 创建一个纯净的隐藏/新打印窗口，隔绝 POS 界面的其他杂乱按钮
+  const printWindow = window.open("", "_blank");
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Matchalogy Monthly Report - ${monthValue}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 30px; color: #333; line-height: 1.6; }
+        .print-header { text-align: center; margin-bottom: 25px; border-bottom: 3px double #2e7d32; padding-bottom: 10px; }
+        .print-header h1 { margin: 0; color: #2e7d32; font-size: 24px; }
+        .print-header p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
+        h4 { color: #2e7d32; font-size: 16px; margin: 20px 0 10px 0; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        table td { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+        .footer { text-align: center; margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+        @media print {
+          body { padding: 0; }
+          button { display: none; }
         }
+      </style>
+    </head>
+    <body>
+      <div class="print-header">
+        <h1>Matchalogy Monthly Business Report</h1>
+        <p>月份：${monthValue} | 导出时间：${new Date().toLocaleString()}</p>
+      </div>
+      
+      ${reportContent}
 
-        <div class="pending-actions">
-
-          <button
-            onclick="acceptPendingOrder('${order.id}')"
-          >
-            Accept & Pay
-          </button>
-
-          <button
-            class="reject-pending-btn"
-            onclick="rejectPendingOrder('${order.id}')"
-          >
-            Reject
-          </button>
-
-        </div>
-
+      <div class="footer">
+        Matchalogy POS System · 🟢 经营数据保密自持
       </div>
 
-    `;
+      <script>
+        window.onload = function() {
+          window.print();
+          // 打印对话框关闭后自动关闭该纯净标签页
+          setTimeout(() => { window.close(); }, 500);
+        };
+      <\/script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+};
 
+// 绑定相关事件监听器
+if($("monthlyRevenueCard")){
+  $("monthlyRevenueCard").addEventListener("click",()=>{
+    show("monthlyReportModal");
   });
-
-  setHTML(
-    "pendingOrdersList",
-    html || "<p>No pending QR orders.</p>"
-  );
-
 }
 
-
-window.acceptPendingOrder =
-async function(id){
-
-  const payment =
-    prompt(
-      "Payment Method: Cash / TNG / Shopee",
-      "TNG"
-    );
-
-  if(payment === null){
-    return;
-  }
-
-  const allowedPayments = [
-    "Cash",
-    "TNG",
-    "Shopee"
-  ];
-
-  if(!allowedPayments.includes(payment)){
-
-    alert(
-      "Please enter Cash, TNG or Shopee."
-    );
-
-    return;
-
-  }
-
-
-  const pendingRef =
-    doc(db,"pendingOrders",id);
-
-  const officialOrderRef =
-    doc(collection(db,"orders"));
-
-  const orderNo =
-    Date.now()
-    .toString()
-    .slice(-6);
-
-
-  try{
-
-    await runTransaction(
-      db,
-      async transaction=>{
-
-        const pendingSnap =
-          await transaction.get(
-            pendingRef
-          );
-
-        if(!pendingSnap.exists()){
-
-          throw new Error(
-            "QR order no longer exists."
-          );
-
-        }
-
-        const pending =
-          pendingSnap.data();
-
-        if(pending.status !== "pending"){
-
-          throw new Error(
-            "This order has already been handled."
-          );
-
-        }
-
-        const pendingItems =
-          pending.items || [];
-
-        if(
-          pendingItems.length === 0
-          ||
-          pendingItems.length > 30
-        ){
-
-          throw new Error(
-            "Invalid QR order."
-          );
-
-        }
-
-
-        const officialItems = [];
-        let subtotal = 0;
-
-
-        for(const item of pendingItems){
-
-          const productRef =
-            doc(
-              db,
-              "products",
-              String(item.productId)
-            );
-
-          const productSnap =
-            await transaction.get(
-              productRef
-            );
-
-          if(!productSnap.exists()){
-
-            throw new Error(
-              "A product is no longer available."
-            );
-
-          }
-
-          const product =
-            productSnap.data();
-
-          if(product.available === false){
-
-            throw new Error(
-              `${product.name} is sold out.`
-            );
-
-          }
-
-          const quantity =
-            Math.min(
-              20,
-              Math.max(
-                1,
-                Number(item.qty) || 1
-              )
-            );
-
-          const config = getProductModifierConfig(product);
-          const requestedAddonCode = String(item.addonCode || "0");
-          const addon = config.showAddon
-            ? config.addonOptions.find(option=>String(option.value) === requestedAddonCode)
-              || config.addonOptions.find(option=>Number(option.price) === 0)
-              || {value:"0",label:"None",price:0}
-            : {value:"0",label:"None",price:0};
-
-          const allowedValue = (value,options,enabled)=>{
-            if(!enabled) return "";
-            const text = String(value || "").slice(0,40);
-            return options.some(option=>String(option.value) === text) ? text : "";
-          };
-
-          const unitPrice = (Number(product.price) || 0) + (Number(addon.price) || 0);
-
-          officialItems.push({
-            productId:productSnap.id,
-            name:product.name || "Product",
-            price:unitPrice,
-            qty:quantity,
-            milk:allowedValue(item.milk,config.milkOptions,config.showMilk),
-            ice:allowedValue(item.ice,config.iceOptions,config.showIce),
-            sweet:allowedValue(item.sweet,config.sweetOptions,config.showSweet),
-            addon:addon.label,
-            addonCode:String(addon.value),
-            note:config.showNote ? String(item.note || "").slice(0,200) : ""
-          });
-
-          subtotal +=
-            unitPrice * quantity;
-
-        }
-
-
-        transaction.set(
-          officialOrderRef,
-          {
-            orderNo,
-            items:officialItems,
-            subtotal,
-            discount:0,
-            total:subtotal,
-            payment,
-            note:
-              String(
-                pending.note || ""
-              ).slice(0,300),
-            source:"QR",
-            customerName:
-              String(
-                pending.customerName || ""
-              ).slice(0,50),
-            customerPhone:
-              String(
-                pending.customerPhone || ""
-              ).slice(0,30),
-            customerOrderNo:
-              pending.customerOrderNo || "",
-            time:
-              serverTimestamp()
-          }
-        );
-
-
-        transaction.update(
-          pendingRef,
-          {
-            status:"accepted",
-            payment,
-            acceptedAt:
-              serverTimestamp(),
-            officialOrderNo:
-              orderNo,
-            officialOrderId:
-              officialOrderRef.id,
-            finalTotal:
-              subtotal
-          }
-        );
-
-      }
-    );
-
-
-    alert(
-      `QR order accepted ✅\nOrder #${orderNo}`
-    );
-
-    loadDashboard();
-
-
-  }catch(error){
-
-    console.error(error);
-
-    alert(
-      error.message
-      ||
-      "Unable to accept this order."
-    );
-
-  }
-
+if($("reportMonth")){
+  $("reportMonth").addEventListener("change", generateMonthlyReport);
 }
 
-
-window.rejectPendingOrder =
-async function(id){
-
-  const reason =
-    prompt(
-      "Reason for rejection",
-      "Item unavailable"
-    );
-
-  if(reason === null){
-    return;
-  }
-
-  await updateDoc(
-    doc(db,"pendingOrders",id),
-    {
-      status:"rejected",
-      rejectReason:
-        String(reason).slice(0,200),
-      rejectedAt:
-        serverTimestamp()
-    }
-  );
-
+// 5. 如果你的 HTML 里面增加了关闭或者导出按钮，可以在这里初始化挂载
+if($("closeMonthlyReportBtn")){
+  $("closeMonthlyReportBtn").addEventListener("click", () => hide("monthlyReportModal"));
 }
 
-// ---------- STORE OPEN / CLOSED ----------
-
-let storeOpenState = true;
-
-
-function renderStoreStatusButton(){
-
-  const button =
-    $("storeStatusBtn");
-
-  if(!button){
-    return;
-  }
-
-  button.classList.remove(
-    "store-open",
-    "store-closed"
-  );
-
-  if(storeOpenState){
-
-    button.classList.add(
-      "store-open"
-    );
-
-    button.innerText =
-      "Store: Open";
-
-  }else{
-
-    button.classList.add(
-      "store-closed"
-    );
-
-    button.innerText =
-      "Store: Closed";
-
-  }
-
+if($("exportReportBtn")){
+  $("exportReportBtn").addEventListener("click", window.exportMonthlyReportToPDF);
 }
-
-
-async function loadStoreStatus(){
-
-  try{
-
-    const snapshot =
-      await getDoc(
-        doc(db,"settings","store")
-      );
-
-    if(snapshot.exists()){
-
-      storeOpenState =
-        snapshot.data().open !== false;
-
-    }else{
-
-      storeOpenState = true;
-
-    }
-
-    renderStoreStatusButton();
-
-  }catch(error){
-
-    console.error(error);
-
-    const button =
-      $("storeStatusBtn");
-
-    if(button){
-      button.innerText =
-        "Status Error";
-    }
-
-  }
-
-}
-
-
-if($("storeStatusBtn")){
-
-  $("storeStatusBtn")
-  .addEventListener("click",async()=>{
-
-    if(
-      !["owner","manager"]
-      .includes(currentStaffRole)
-    ){
-
-      alert(
-        "Only owner or manager can change store status."
-      );
-
-      return;
-
-    }
-
-    const button =
-      $("storeStatusBtn");
-
-    const newStatus =
-      !storeOpenState;
-
-    button.disabled = true;
-    button.innerText =
-      "Updating...";
-
-    try{
-
-      await setDoc(
-        doc(db,"settings","store"),
-        {
-          open:newStatus,
-
-          updatedAt:
-            serverTimestamp(),
-
-          updatedBy:
-            auth.currentUser
-            ? auth.currentUser.uid
-            : ""
-        },
-        {
-          merge:true
-        }
-      );
-
-      storeOpenState =
-        newStatus;
-
-      renderStoreStatusButton();
-
-      alert(
-        newStatus
-        ? "Customer ordering is now OPEN."
-        : "Customer ordering is now CLOSED."
-      );
-
-    }catch(error){
-
-      console.error(error);
-
-      alert(
-        "Unable to change store status."
-      );
-
-      renderStoreStatusButton();
-
-    }finally{
-
-      button.disabled = false;
-
-    }
-
-  });
-
-}
-
 // ---------- STAFF AUTH ----------
 
 async function startPOSForStaff(user){
