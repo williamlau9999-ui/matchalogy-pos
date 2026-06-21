@@ -827,29 +827,49 @@ async function loadClosingHistory(){
   closings.sort((a, b)=> toDate(b.time) - toDate(a.time));
   allClosings = closings;
 
-  let monthData = {};
+  // 1. 按年份和月份进行分组
+  let grouped = {};
   closings.forEach(c=>{
     const date = toDate(c.time);
-    const monthLabel = `${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
-    const inputFormat = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    if(!monthData[monthLabel]){ monthData[monthLabel] = { total: 0, inputVal: inputFormat }; }
-    monthData[monthLabel].total += Number(c.revenue) || 0;
+    const year = date.getFullYear();
+    const monthLabel = date.toLocaleString("default", { month: "long" });
+    const inputFormat = `${year}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    
+    if(!grouped[year]) grouped[year] = {};
+    if(!grouped[year][monthLabel]) grouped[year][monthLabel] = { total: 0, inputVal: inputFormat };
+    
+    grouped[year][monthLabel].total += Number(c.revenue) || 0;
   });
 
+  // 2. 渲染 Daily Closing (列表不变)
   setHTML("closingHistory", renderClosingCards(closings));
 
-  let monthHTML = "";
-  Object.entries(monthData).forEach(([monthLabel, data])=>{
-    monthHTML += `
-      <div class="closing-card" style="cursor:pointer; background:#f0f4f8; border-left: 4px solid #1976d2; padding: 10px; margin-bottom: 5px;" onclick="openMonthlyReport('${data.inputVal}', '${monthLabel}')">
-        <strong>${escapeHTML(monthLabel)}</strong><br>
-        Revenue: RM ${money(data.total)}<br>
-        <small style="color:#1976d2; font-weight:bold;">👉 Click for Report</small>
-      </div>
+  // 3. 渲染按年份折叠的月份列表
+  let html = "";
+  Object.keys(grouped).sort((a,b)=>b-a).forEach(year => {
+    html += `
+      <details style="margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; padding: 5px;">
+        <summary style="cursor:pointer; font-weight:bold; padding: 10px; background:#f9f9f9;">
+          📅 ${year} Revenue Records
+        </summary>
+        <div style="padding: 10px;">
     `;
+    
+    Object.entries(grouped[year]).forEach(([month, data]) => {
+      html += `
+        <div class="closing-card" style="cursor:pointer; background:#fff; border-left: 4px solid #1976d2; padding: 10px; margin-bottom: 8px; border: 1px solid #eee;" onclick="openMonthlyReport('${data.inputVal}', '${month} ${year}')">
+          <strong>${month} ${year}</strong><br>
+          Total: RM ${money(data.total)}<br>
+          <small style="color:#1976d2; font-weight:bold;">👉 Click for Report</small>
+        </div>
+      `;
+    });
+    
+    html += `</div></details>`;
   });
-  setHTML("monthlyRevenueList", monthHTML);
-}
+  
+  setHTML("monthlyRevenueList", html);
+} 
 
 if($("closingSearch")){
   $("closingSearch").addEventListener("input", (e)=>{
