@@ -772,8 +772,8 @@ function showReceipt(order){
 if($("closeReceiptBtn")){ $("closeReceiptBtn").addEventListener("click",()=>{ hide("receiptModal"); }); }
 if($("printReceiptBtn")){ $("printReceiptBtn").addEventListener("click",()=>{ window.print(); }); }
 
+// ---------- CLOSING & MONTHLY REVENUE & REPORT ----------
 
-// ---------- CLOSING & MONTHLY REVENUE ----------
 if($("closeDayBtn")){
   $("closeDayBtn").addEventListener("click",async()=>{
     const ok = confirm("确定要对今天进行结账关闭吗？");
@@ -799,7 +799,7 @@ if($("closeDayBtn")){
     });
 
     await addDoc(collection(db,"closings"), { date: today, revenue, discount, orders, cash, tng, shopee, time: new Date() });
-    alert("今日账目已成功关闭结清 ✅");
+    alert("Day Closed ✅");
     loadClosingHistory(); loadDashboard();
   });
 }
@@ -809,15 +809,14 @@ function renderClosingCards(list){
   list.forEach(c=>{
     html += `
       <div class="closing-card">
-        <strong>${escapeHTML(c.date)}</strong>
-        <div style="margin-top: 5px; font-size: 0.9em; line-height: 1.5;">
-          Revenue: <span style="color:#2e7d32; font-weight:bold;">RM ${money(c.revenue)}</span><br>
-          Discount: RM ${money(c.discount)}<br>
-          Orders: ${c.orders}<br>
-          <hr style="border:0; border-top:1px dashed #eee; margin:4px 0;">
-          💵 Cash: RM ${money(c.cash)} | 🟦 TNG: RM ${money(c.tng)} | 🟧 Shopee: RM ${money(c.shopee)}
-        </div>
-        <button class="remove-btn" style="margin-top:8px; padding:2px 8px;" onclick="deleteClosing('${c.id}')">Delete</button>
+        <strong>${escapeHTML(c.date)}</strong><br>
+        Revenue: RM ${money(c.revenue)}<br>
+        Discount: RM ${money(c.discount)}<br>
+        Orders: ${c.orders}<br>
+        Cash: RM ${money(c.cash)}<br>
+        TNG: RM ${money(c.tng)}<br>
+        Shopee: RM ${money(c.shopee)}
+        <button onclick="deleteClosing('${c.id}')">Delete</button>
       </div>
     `;
   });
@@ -831,39 +830,120 @@ async function loadClosingHistory(){
   closings.sort((a,b)=> toDate(b.time) - toDate(a.time));
   allClosings = closings;
 
-  // 完美对接 HTML：自动计算当月总营业额
+  // 1. 计算当月总额显示在顶部
   const now = new Date();
   let currentMonthTotal = 0;
+  
+  // 2. 统计每个月的数据 (还原你原本的逻辑)
+  let monthData = {};
   closings.forEach(c=>{
     const date = toDate(c.time);
     if(date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()){
       currentMonthTotal += Number(c.revenue) || 0;
     }
+    
+    const monthKey = `${date.toLocaleString("default",{ month:"long" })} ${date.getFullYear()}`;
+    const inputFormat = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    
+    if(!monthData[monthKey]){ monthData[monthKey] = { total: 0, inputVal: inputFormat }; }
+    monthData[monthKey].total += Number(c.revenue) || 0;
   });
 
   setText("monthRevenue", money(currentMonthTotal));
   setHTML("closingHistory", renderClosingCards(closings));
+
+  // 3. 把每个月（5月、6月）渲染成可点击的卡片
+  let monthHTML = "";
+  Object.entries(monthData).forEach(([monthLabel, data])=>{
+    monthHTML += `
+      <div class="closing-card" style="cursor:pointer;" onclick="openMonthlyReport('${data.inputVal}', '${monthLabel}')">
+        <strong>${escapeHTML(monthLabel)}</strong><br>
+        Revenue: RM ${money(data.total)}<br>
+        <small style="color:blue;">👉 Click for details</small>
+      </div>
+    `;
+  });
+  setHTML("monthlyRevenueList", monthHTML);
 }
 
 window.deleteClosing = async function(id){
-  const ok = confirm("确定要删除这条日结记录吗？");
+  const ok = confirm("Delete this closing record?");
   if(!ok) return;
   await deleteDoc(doc(db,"closings",id));
   loadClosingHistory();
 };
 
-// 🌟 核心修复：完美对接 HTML 弹窗
-if($("openMonthlyBtn")){
-  $("openMonthlyBtn").addEventListener("click", () => {
-    show("monthlyModal");
+if($("openMonthlyBtn")){ $("openMonthlyBtn").addEventListener("click", () => show("monthlyModal")); }
+if($("closeMonthlyBtn")){ $("closeMonthlyBtn").addEventListener("click", () => hide("monthlyModal")); }
+
+
+// --- 你原本的报表生成逻辑 ---
+window.openMonthlyReport = async function(monthValue, monthLabel) {
+  $("reportMonth").value = monthValue;
+  setText("reportMonthTitle", monthLabel + " Report");
+  await generateMonthlyReport();
+  show("monthlyReportModal");
+};
+
+async function generateMonthlyReport(){
+  const monthValue = $("reportMonth").value;
+  if(!monthValue) return;
+
+  const [year, month] = monthValue.split("-").map(Number);
+  const snapshot = await getDocs(collection(db,"orders"));
+
+  let revenue = 0; let orders = 0; let discount = 0;
+  let top = {};
+
+  snapshot.forEach(docSnap=>{
+    const order = docSnap.data();
+    const d = toDate(order.time);
+    if(d.getFullYear() === year && (d.getMonth() + 1) === month){
+      revenue += Number(order.total) || 0;
+      discount += Number(order.discount) || 0;
+      orders++;
+      order.items.forEach(item=>{ top[item.name] = (top[item.name] || 0) + (Number(item.qty) || 0); });
+    }
   });
-}
-if($("closeMonthlyBtn")){
-  $("closeMonthlyBtn").addEventListener("click", () => {
-    hide("monthlyModal");
-  });
+
+  const top3 = Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+  // 完全使用你原本的样式结构
+  $("monthlyReportContent").innerHTML = `
+    <h3>Revenue</h3><p>RM ${money(revenue)}</p>
+    <h3>Orders</h3><p>${orders}</p>
+    <h3>Discount</h3><p>RM ${money(discount)}</p>
+    <hr>
+    <h3>Top Selling</h3>
+    ${top3.map((item,index)=>`<div>${index+1}. ${item[0]} x${item[1]}</div>`).join("")}
+  `;
 }
 
+if($("closeReportBtn")){ $("closeReportBtn").addEventListener("click", () => hide("monthlyReportModal")); }
+
+// --- 下载 PDF 功能 ---
+if($("downloadReportBtn")){
+  $("downloadReportBtn").addEventListener("click", () => {
+    const reportContent = $("monthlyReportContent").innerHTML;
+    const monthTitle = $("reportMonthTitle").innerText;
+    
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>${monthTitle}</title>
+        <style>body { font-family: sans-serif; padding: 20px; }</style>
+      </head>
+      <body>
+        <h2>${monthTitle}</h2>
+        ${reportContent}
+        <script>window.onload = function() { window.print(); setTimeout(() => { window.close(); }, 500); };<\/script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  });
+} 
 
 // ---------- SECURE QR PENDING ORDERS ----------
 function startPendingOrdersListener(){

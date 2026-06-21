@@ -486,45 +486,23 @@
   src="app.js"	
 ></script>
 
-<div
-  id="monthlyModal"
-  class="modifier-modal"
->
-
+<div id="monthlyModal" class="modifier-modal">
   <div class="modifier-box">
-
     <h3>Monthly Revenue</h3>
-<div
-  class="dash-card"
-  id="monthlyRevenueCard"
->
+    
+    <div class="dash-card" id="monthlyRevenueCard">
+      <div>This Month Revenue</div>
+      <strong>RM <span id="monthRevenue">0</span></strong>
+    </div>
 
-  <div>
-    Monthly Revenue
+    <div id="monthlyRevenueList"></div>
+
+    <h3>Daily Closing</h3>
+    <div id="closingHistory"></div>
+
+    <button id="closeMonthlyBtn">Close</button>
   </div>
-
-  <strong>
-    RM
-    <span id="monthRevenue">
-      0
-    </span>
-  </strong>
-
 </div>
-
-<h3>Daily Closing</h3>
-<div id="closingHistory"></div>
-
-    <button id="closeMonthlyBtn">
-
-      Close
-
-    </button>
-
-  </div>
-
-</div>
-
 
 <div
   id="productModal"
@@ -762,6 +740,18 @@
       </div>
     </div>
   </div>
+
+<div id="monthlyReportModal" class="modifier-modal" style="display:none;">
+  <div class="modifier-box">
+    <h2 id="reportMonthTitle">Monthly Report</h2>
+    <input type="hidden" id="reportMonth"> 
+    
+    <div id="monthlyReportContent"></div>
+    
+    <button id="downloadReportBtn" style="background:#2e7d32; color:white; margin-top:10px;">Download PDF / Print</button>
+    <button id="closeReportBtn" style="margin-top:10px;">Close</button>
+  </div>
+</div>
 
 </body>
 
