@@ -340,7 +340,7 @@ function bindProductActions(){
     button.addEventListener("click",async()=>{
       const product = productCache.get(button.dataset.delete);
       if(!product || !confirm("Delete this product?")) return;
-      await deleteDoc(doc(db,"products",product.id));
+      await deleteDoc(doc(db,"products",button.dataset.delete));
       loadProducts();
     });
   });
@@ -400,6 +400,7 @@ function addPlainCartItem(name,price){
   renderCart();
 }
 
+// ---------- RENDER CART ----------
 function renderCart(){
   let html = "";
   let subtotal = 0;
@@ -772,8 +773,7 @@ if($("closeReceiptBtn")){ $("closeReceiptBtn").addEventListener("click",()=>{ hi
 if($("printReceiptBtn")){ $("printReceiptBtn").addEventListener("click",()=>{ window.print(); }); }
 
 
-// ---------- CLOSING & MONTHLY REVENUE & REPORT ----------
-
+// ---------- CLOSING & MONTHLY REVENUE ----------
 if($("closeDayBtn")){
   $("closeDayBtn").addEventListener("click",async()=>{
     const ok = confirm("确定要对今天进行结账关闭吗？");
@@ -831,40 +831,18 @@ async function loadClosingHistory(){
   closings.sort((a,b)=> toDate(b.time) - toDate(a.time));
   allClosings = closings;
 
-  let monthData = {};
+  // 完美对接 HTML：自动计算当月总营业额
+  const now = new Date();
+  let currentMonthTotal = 0;
   closings.forEach(c=>{
     const date = toDate(c.time);
-    const monthKey = `${date.toLocaleString("default",{ month:"long" })} ${date.getFullYear()}`;
-    const inputFormat = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    if(!monthData[monthKey]){ monthData[monthKey] = { total: 0, inputVal: inputFormat }; }
-    monthData[monthKey].total += Number(c.revenue) || 0;
+    if(date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()){
+      currentMonthTotal += Number(c.revenue) || 0;
+    }
   });
 
-  let monthHTML = "";
-  Object.entries(monthData).forEach(([month, data])=>{
-    monthHTML += `
-      <div class="closing-card month-revenue-card" style="cursor:pointer; border-left:4px solid #2e7d32; transition:transform 0.2s;" onclick="quickViewMonthlyReport('${data.inputVal}')" title="点击直接生成此月度深度报表">
-        <strong>${escapeHTML(month)}</strong>
-        <div style="margin-top: 5px;">Total Revenue: <strong style="color:#2e7d32;">RM ${money(data.total)}</strong></div>
-        <small style="color:#777; display:block; margin-top:4px;">📊 点击查看详细月报表</small>
-      </div>
-    `;
-  });
-
-  setHTML("monthlyRevenue", monthHTML || '<div style="color:#777;">暂无月营收数据</div>');
+  setText("monthRevenue", money(currentMonthTotal));
   setHTML("closingHistory", renderClosingCards(closings));
-}
-
-window.quickViewMonthlyReport = function(monthValue) {
-  if($("reportMonth")) { $("reportMonth").value = monthValue; generateMonthlyReport(); show("monthlyReportModal"); }
-};
-
-if($("closingSearch")){
-  $("closingSearch").addEventListener("input",()=>{
-    const keyword = getValue("closingSearch").toLowerCase();
-    const filtered = allClosings.filter(c=> String(c.date).toLowerCase().includes(keyword) );
-    setHTML("closingHistory", renderClosingCards(filtered));
-  });
 }
 
 window.deleteClosing = async function(id){
@@ -874,79 +852,18 @@ window.deleteClosing = async function(id){
   loadClosingHistory();
 };
 
-async function generateMonthlyReport(){
-  const monthValue = getValue("reportMonth");
-  if(!monthValue){ setHTML("monthlyReportContent", "<p style='color:#777;'>请先选择需要查询的月份。</p>"); return; }
-
-  const [year, month] = monthValue.split("-").map(Number);
-  const snapshot = await getDocs(collection(db,"orders"));
-  let revenue = 0; let orders = 0; let discount = 0; let topProducts = {};
-  let cashTotal = 0; let tngTotal = 0; let shopeeTotal = 0;
-
-  snapshot.forEach(docSnap=>{
-    const order = docSnap.data(); const d = toDate(order.time);
-    if(d.getFullYear() === year && (d.getMonth() + 1) === month){
-      const orderTotal = Number(order.total) || 0;
-      revenue += orderTotal; discount += Number(order.discount) || 0; orders++;
-      if(order.payment === "Cash") cashTotal += orderTotal;
-      if(order.payment === "TNG") tngTotal += orderTotal;
-      if(order.payment === "Shopee") shopeeTotal += orderTotal;
-      (order.items || []).forEach(item=>{ topProducts[item.name] = (topProducts[item.name] || 0) + (Number(item.qty) || 0); });
-    }
+// 🌟 核心修复：完美对接 HTML 弹窗
+if($("openMonthlyBtn")){
+  $("openMonthlyBtn").addEventListener("click", () => {
+    show("monthlyModal");
   });
-
-  const sortedProducts = Object.entries(topProducts).sort((a,b)=> b[1] - a[1]);
-  $("monthlyReportContent").innerHTML = `
-    <div style="border:1px solid #ddd; padding:15px; border-radius:6px; background:#fafafa;">
-      <h4 style="margin:0 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">📊 财务总览 (Financial Summary)</h4>
-      <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
-        <tr><td>总营业额 (Revenue):</td><td style="text-align:right; font-weight:bold; color:#2e7d32;">RM ${money(revenue)}</td></tr>
-        <tr><td>总订单数 (Total Orders):</td><td style="text-align:right; font-weight:bold;">${orders} 单</td></tr>
-        <tr><td>已给折扣 (Total Discount):</td><td style="text-align:right; color:#c62828;">RM ${money(discount)}</td></tr>
-      </table>
-      <h4 style="margin:15px 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">💳 支付渠道对账 (Payment Channels)</h4>
-      <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
-        <tr><td>💵 现金支付 (Cash):</td><td style="text-align:right;">RM ${money(cashTotal)}</td></tr>
-        <tr><td>🟦 Touch 'n Go (TNG):</td><td style="text-align:right;">RM ${money(tngTotal)}</td></tr>
-        <tr><td>🟧 虾皮支付 (ShopeePay):</td><td style="text-align:right;">RM ${money(shopeeTotal)}</td></tr>
-      </table>
-      <h4 style="margin:15px 0 10px 0; color:#2e7d32; font-size:1.1em; border-bottom:1px solid #eee; padding-bottom:5px;">🏆 商品销量排行 (Product Ranking)</h4>
-      ${sortedProducts.length === 0 ? '<p style="color:#777; font-size:0.9em;">当月无销售明细</p>' : 
-        sortedProducts.map((item, index)=>`<div style="display:flex; justify-content:space-between; font-size:0.95em; padding:4px 0; border-bottom:1px dashed #eee;"><span>${index + 1}. ${escapeHTML(item[0])}</span><strong style="color:#4caf50;">x${item[1]}</strong></div>`).join("")}
-    </div>
-  `;
+}
+if($("closeMonthlyBtn")){
+  $("closeMonthlyBtn").addEventListener("click", () => {
+    hide("monthlyModal");
+  });
 }
 
-window.exportMonthlyReportToPDF = function() {
-  const reportContent = $("monthlyReportContent").innerHTML;
-  const monthValue = getValue("reportMonth");
-  if(!monthValue || reportContent.includes("请先选择") || reportContent.trim() === ""){ alert("请先选择一个有效的月份并生成报表后再进行导出。"); return; }
-  const printWindow = window.open("", "_blank");
-  printWindow.document.write(`
-    <!DOCTYPE html><html><head><title>Matchalogy Monthly Report - ${monthValue}</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 30px; color: #333; line-height: 1.6; }
-        .print-header { text-align: center; margin-bottom: 25px; border-bottom: 3px double #2e7d32; padding-bottom: 10px; }
-        .print-header h1 { margin: 0; color: #2e7d32; font-size: 24px; }
-        .print-header p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
-        h4 { color: #2e7d32; font-size: 16px; margin: 20px 0 10px 0; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        table td { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
-        .footer { text-align: center; margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
-        @media print { body { padding: 0; } button { display: none; } }
-      </style></head><body>
-      <div class="print-header"><h1>Matchalogy Monthly Business Report</h1><p>月份：${monthValue} | 导出时间：${new Date().toLocaleString()}</p></div>
-      ${reportContent}
-      <div class="footer">Matchalogy POS System · 🟢 经营数据保密自持</div>
-      <script>window.onload = function() { window.print(); setTimeout(() => { window.close(); }, 500); };<\/script></body></html>
-  `);
-  printWindow.document.close();
-};
-
-if($("monthlyRevenueCard")){ $("monthlyRevenueCard").addEventListener("click",()=>{ show("monthlyReportModal"); }); }
-if($("reportMonth")){ $("reportMonth").addEventListener("change", generateMonthlyReport); }
-if($("closeMonthlyReportBtn")){ $("closeMonthlyReportBtn").addEventListener("click", () => hide("monthlyReportModal")); }
-if($("exportReportBtn")){ $("exportReportBtn").addEventListener("click", window.exportMonthlyReportToPDF); }
 
 // ---------- SECURE QR PENDING ORDERS ----------
 function startPendingOrdersListener(){
