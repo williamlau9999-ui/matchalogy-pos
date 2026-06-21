@@ -900,29 +900,48 @@ async function generateMonthlyReport(){
   const monthValue = $("reportMonth").value;
   if(!monthValue) return;
   const [year, month] = monthValue.split("-").map(Number);
-  const snapshot = await getDocs(collection(db, "orders"));
-  let revenue = 0; let orders = 0; let discount = 0;
+
+  // 1. 获取 CLOSINGS 用于计算财务数据 (保证与外面看到的数字一致)
+  const closingsSnap = await getDocs(collection(db, "closings"));
+  let revenue = 0; let totalOrders = 0; let discount = 0;
+  closingsSnap.forEach(docSnap=>{
+    const c = docSnap.data();
+    const d = toDate(c.time);
+    if(d.getFullYear() === year && (d.getMonth() + 1) === month){
+      revenue += Number(c.revenue) || 0;
+      discount += Number(c.discount) || 0;
+      totalOrders += Number(c.orders) || 0; // 使用结账记录里的订单数
+    }
+  });
+
+  // 2. 获取 ORDERS 仅用于计算 Top Selling (热销商品)
+  const ordersSnap = await getDocs(collection(db, "orders"));
   let top = {};
-  snapshot.forEach(docSnap=>{
+  ordersSnap.forEach(docSnap=>{
     const order = docSnap.data();
     const d = toDate(order.time);
     if(d.getFullYear() === year && (d.getMonth() + 1) === month){
-      revenue += Number(order.total) || 0;
-      discount += Number(order.discount) || 0;
-      orders++;
-      order.items.forEach(item=>{ top[item.name] = (top[item.name] || 0) + (Number(item.qty) || 0); });
+      order.items.forEach(item=>{ 
+        top[item.name] = (top[item.name] || 0) + (Number(item.qty) || 0); 
+      });
     }
   });
+
   const top3 = Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+  // 3. 渲染
   $("monthlyReportContent").innerHTML = `
-    <h3>Revenue</h3><p>RM ${money(revenue)}</p>
-    <h3>Orders</h3><p>${orders}</p>
-    <h3>Discount</h3><p>RM ${money(discount)}</p>
+    <h3>Total Revenue</h3>
+    <p>RM ${money(revenue)}</p>
+    <h3>Total Orders</h3>
+    <p>${totalOrders}</p>
+    <h3>Total Discount</h3>
+    <p>RM ${money(discount)}</p>
     <hr>
-    <h3>Top Selling</h3>
+    <h3>Top Selling Items</h3>
     ${top3.map((item,index)=>`<div>${index+1}. ${item[0]} x${item[1]}</div>`).join("") || '<div>-</div>'}
   `;
-}
+} 
 
 if($("closeReportBtn")){ $("closeReportBtn").addEventListener("click", () => hide("monthlyReportModal")); }
 
