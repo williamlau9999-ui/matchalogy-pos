@@ -606,6 +606,12 @@ async function submitCustomerOrder(){
 
   try{
     const orderRef = await addDoc(collection(db,"pendingOrders"),{
+
+customerName:
+  document.getElementById(
+    "customerName"
+  ).value.trim(),
+
       creatorUid:currentUser.uid,
       customerOrderNo,
       customerName,

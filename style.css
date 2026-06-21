@@ -677,3 +677,11 @@ button{
     grid-template-columns:1fr;
   }
 }
+
+#monthlyRevenueCard{
+  cursor:pointer;
+}
+
+#monthlyRevenueCard:hover{
+  transform:scale(1.02);
+}

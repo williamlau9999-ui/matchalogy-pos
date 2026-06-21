@@ -215,6 +215,18 @@
 
       <div>Today Orders</div>
 
+<div class="dash-card">
+
+  <div>
+    Peak Hour
+  </div>
+
+  <strong id="peakHour">
+    -
+  </strong>
+
+</div>
+
       <strong id="todayOrders">
         0
       </strong>
@@ -482,14 +494,23 @@
   <div class="modifier-box">
 
     <h3>Monthly Revenue</h3>
-<div id="monthlyRevenue"></div>
+<div
+  class="dash-card"
+  id="monthlyRevenueCard"
+>
 
-<hr>
+  <div>
+    Monthly Revenue
+  </div>
 
-<input
-  id="closingSearch"
-  placeholder="Search date, e.g. May 18"
-/>
+  <strong>
+    RM
+    <span id="monthRevenue">
+      0
+    </span>
+  </strong>
+
+</div>
 
 <h3>Daily Closing</h3>
 <div id="closingHistory"></div>
@@ -716,6 +737,47 @@
       <button id="saveBtn">Save Product</button>
       <button id="closeProductBtn" class="secondary-action">Close</button>
     </div>
+
+  </div>
+
+</div>
+
+<div
+  id="monthlyReportModal"
+  class="modifier-modal"
+>
+
+  <div class="modifier-box">
+
+    <h2>
+      📊 Monthly Report
+    </h2>
+
+    <input
+      type="month"
+      id="reportMonth"
+    />
+
+    <div
+      id="monthlyReportContent"
+      style="
+        margin-top:20px;
+      "
+    >
+      Select Month
+    </div>
+
+    <button
+      id="downloadReportBtn"
+    >
+      Download PDF
+    </button>
+
+    <button
+      id="closeReportBtn"
+    >
+      Close
+    </button>
 
   </div>
 

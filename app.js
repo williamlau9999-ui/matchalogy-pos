@@ -1266,6 +1266,8 @@ async function loadDashboard(){
   let topMonth = {};
   let topAllTime = {};
 
+  let hourlySales = {};
+
   let ordersHTML = "";
 
   const today =
@@ -1281,6 +1283,17 @@ async function loadDashboard(){
 
     const orderDate =
       toDate(order.time);
+
+const hour =
+  orderDate.getHours();
+
+const slot =
+  Math.floor(hour / 2) * 2;
+
+hourlySales[slot] =
+  (hourlySales[slot] || 0)
+  +
+  (Number(order.total) || 0);
 
     order.items.forEach(item=>{
 
@@ -1448,6 +1461,25 @@ async function loadDashboard(){
 
 fullMonthSales = topMonth;
 fullAllTimeSales = topAllTime;
+
+const peak =
+  Object.entries(hourlySales)
+  .sort(
+    (a,b)=>b[1]-a[1]
+  )[0];
+
+if(
+  peak
+  &&
+  $("peakHour")
+){
+
+  setText(
+    "peakHour",
+    `${peak[0]}:00`
+  );
+
+}
 
 }
 
@@ -2737,6 +2769,150 @@ loadDashboard();
 loadClosingHistory();
 startPendingOrdersListener();
 await loadStoreStatus();
+
+}
+
+async function generateMonthlyReport(){
+
+  const monthValue =
+    $("reportMonth").value;
+
+  if(!monthValue){
+    return;
+  }
+
+  const [
+    year,
+    month
+  ] =
+  monthValue
+  .split("-")
+  .map(Number);
+
+  const snapshot =
+    await getDocs(
+      collection(db,"orders")
+    );
+
+  let revenue = 0;
+  let orders = 0;
+  let discount = 0;
+
+  let top = {};
+
+  snapshot.forEach(docSnap=>{
+
+    const order =
+      docSnap.data();
+
+    const d =
+      toDate(order.time);
+
+    if(
+      d.getFullYear() === year
+      &&
+      d.getMonth()+1 === month
+    ){
+
+      revenue +=
+        Number(order.total) || 0;
+
+      discount +=
+        Number(order.discount) || 0;
+
+      orders++;
+
+      order.items.forEach(item=>{
+
+        top[item.name] =
+          (top[item.name] || 0)
+          +
+          (Number(item.qty) || 0);
+
+      });
+
+    }
+
+  });
+
+  const top3 =
+    Object.entries(top)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,3);
+
+  $("monthlyReportContent")
+  .innerHTML = `
+
+    <h3>
+      Revenue
+    </h3>
+
+    <p>
+      RM ${money(revenue)}
+    </p>
+
+    <h3>
+      Orders
+    </h3>
+
+    <p>
+      ${orders}
+    </p>
+
+    <h3>
+      Discount
+    </h3>
+
+    <p>
+      RM ${money(discount)}
+    </p>
+
+    <hr>
+
+    <h3>
+      Top Selling
+    </h3>
+
+    ${top3.map(
+      (item,index)=>`
+
+        <div>
+
+          ${index+1}.
+          ${item[0]}
+          x${item[1]}
+
+        </div>
+
+      `
+    ).join("")}
+
+  `;
+
+}
+if($("monthlyRevenueCard")){
+
+  $("monthlyRevenueCard")
+  .addEventListener(
+    "click",
+    ()=>{
+
+      show(
+        "monthlyReportModal"
+      );
+
+    }
+  );
+
+}
+
+if($("reportMonth")){
+
+  $("reportMonth")
+  .addEventListener(
+    "change",
+    generateMonthlyReport
+  );
 
 }
 
