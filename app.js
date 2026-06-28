@@ -778,24 +778,34 @@ if($("closeDayBtn")){
   $("closeDayBtn").addEventListener("click", async()=>{
     const ok = confirm("确定要对今天进行结账关闭吗？");
     if(!ok) return;
+
     const today = new Date().toDateString();
     const snapshot = await getDocs(collection(db, "orders"));
+
     let revenue = 0; let discount = 0; let orders = 0;
     let cash = 0; let tng = 0; let shopee = 0;
+
     snapshot.forEach((docSnap)=>{
       const order = docSnap.data();
       const orderDate = toDate(order.time).toDateString();
+
       if(orderDate === today){
         const total = Number(order.total) || 0;
-        revenue += total; discount += Number(order.discount) || 0; orders += 1;
+        revenue += total; 
+        discount += Number(order.discount) || 0; 
+        orders += 1;
         if(order.payment === "Cash") cash += total;
         if(order.payment === "TNG") tng += total;
         if(order.payment === "Shopee") shopee += total;
       }
     });
-    await addDoc(collection(db, "closings"), { date: today, revenue, discount, orders, cash, tng, shopee, time: new Date() });
+
+    await addDoc(collection(db, "closings"), { 
+      date: today, revenue, discount, orders, cash, tng, shopee, time: new Date() 
+    });
     alert("Day Closed ✅");
-    loadClosingHistory(); loadDashboard();
+    loadClosingHistory(); 
+    loadDashboard();
   });
 }
 
@@ -827,7 +837,7 @@ async function loadClosingHistory(){
   closings.sort((a, b)=> toDate(b.time) - toDate(a.time));
   allClosings = closings;
 
-  // 1. 按年份和月份进行分组
+  // 1. 按年份分组
   let grouped = {};
   closings.forEach(c=>{
     const date = toDate(c.time);
@@ -837,22 +847,22 @@ async function loadClosingHistory(){
     
     if(!grouped[year]) grouped[year] = {};
     if(!grouped[year][monthLabel]) grouped[year][monthLabel] = { total: 0, inputVal: inputFormat };
-    
     grouped[year][monthLabel].total += Number(c.revenue) || 0;
   });
 
-  // 2. 渲染 Daily Closing (列表不变)
   setHTML("closingHistory", renderClosingCards(closings));
 
-  // 3. 渲染按年份折叠的月份列表
+  // 2. 渲染折叠面板
   let html = "";
-  Object.keys(grouped).sort((a,b)=>b-a).forEach(year => {
+  Object.keys(grouped).sort((a,b)=>b-a).forEach((year, index) => {
+    // 默认打开最近的一年
+    const openAttr = index === 0 ? 'open' : '';
     html += `
-      <details style="margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; padding: 5px;">
-        <summary style="cursor:pointer; font-weight:bold; padding: 10px; background:#f9f9f9;">
+      <details style="margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; padding: 5px;" ${openAttr}>
+        <summary style="cursor:pointer; font-weight:bold; padding: 10px; background:#f9f9f9; border-radius: 4px;">
           📅 ${year} Revenue Records
         </summary>
-        <div style="padding: 10px;">
+        <div style="padding: 10px 0;">
     `;
     
     Object.entries(grouped[year]).forEach(([month, data]) => {
@@ -864,12 +874,11 @@ async function loadClosingHistory(){
         </div>
       `;
     });
-    
     html += `</div></details>`;
   });
   
   setHTML("monthlyRevenueList", html);
-} 
+}
 
 if($("closingSearch")){
   $("closingSearch").addEventListener("input", (e)=>{
@@ -901,7 +910,6 @@ async function generateMonthlyReport(){
   if(!monthValue) return;
   const [year, month] = monthValue.split("-").map(Number);
 
-  // 1. 获取 CLOSINGS 计算财务数据
   const closingsSnap = await getDocs(collection(db, "closings"));
   let revenue = 0; let totalOrders = 0; let discount = 0;
   let cash = 0; let tng = 0; let shopee = 0;
@@ -919,21 +927,16 @@ async function generateMonthlyReport(){
     }
   });
 
-  // 2. 获取 ORDERS 计算 Top Selling (加入了智能识别，防止出现 undefined)
   const ordersSnap = await getDocs(collection(db, "orders"));
   let top = {};
   ordersSnap.forEach(docSnap=>{
     const order = docSnap.data();
     const d = toDate(order.time);
     if(d.getFullYear() === year && (d.getMonth() + 1) === month){
-      // 兼容数据库可能用 items 或是 cart 作为商品列表
       const itemsArray = order.items || order.cart || []; 
       itemsArray.forEach(item => {
-        // 智能兼容商品名称的各种写法
         const itemName = item.name || item.title || item.productName || item.product || (typeof item === 'string' ? item : "Unknown Item");
-        // 智能兼容商品数量的各种写法
         const itemQty = Number(item.qty || item.quantity || item.count) || 1;
-        
         top[itemName] = (top[itemName] || 0) + itemQty;
       });
     }
@@ -941,12 +944,11 @@ async function generateMonthlyReport(){
 
   const top3 = Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,3);
 
-  // 3. 渲染数据 (加入了专属 class，方便打印机识别排版)
   $("monthlyReportContent").innerHTML = `
     <h3>Total Revenue</h3>
     <p>RM ${money(revenue)}</p>
     
-    <div class="payment-breakdown">
+    <div class="payment-breakdown" style="background: #f4f8f4; padding: 10px; border-radius: 6px; margin-top: -10px; margin-bottom: 20px; border-left: 4px solid #4caf50; font-size: 14px; line-height: 1.6;">
       <div>💵 <strong>Cash:</strong> RM ${money(cash)}</div>
       <div>📱 <strong>TNG:</strong> RM ${money(tng)}</div>
       <div>🛍️ <strong>Shopee:</strong> RM ${money(shopee)}</div>
@@ -958,11 +960,12 @@ async function generateMonthlyReport(){
     <h3>Total Discount</h3>
     <p>RM ${money(discount)}</p>
     
+    <hr>
     <h3>Top Selling Items</h3>
     ${top3.map((item,index)=>`
-      <div class="top-selling-item">
+      <div class="top-selling-item" style="font-size: 16px; padding: 5px 0; border-bottom: 1px dashed #ccc; display: flex; justify-content: space-between;">
         <span class="top-selling-name">${index+1}. ${item[0]}</span>
-        <span class="top-selling-qty">x${item[1]}</span>
+        <span class="top-selling-qty" style="font-weight: bold; color: #d32f2f;">x${item[1]}</span>
       </div>
     `).join("") || '<div class="top-selling-item">-</div>'}
   `;
@@ -970,7 +973,6 @@ async function generateMonthlyReport(){
 
 if($("closeReportBtn")){ $("closeReportBtn").addEventListener("click", () => hide("monthlyReportModal")); }
 
-// 4. 全新升级的打印功能 (注入了排版 CSS，确保打印出来好看)
 if($("downloadReportBtn")){
   $("downloadReportBtn").addEventListener("click", () => {
     const reportContent = $("monthlyReportContent").innerHTML;
@@ -981,7 +983,6 @@ if($("downloadReportBtn")){
       <head>
         <title>${monthTitle} Report</title>
         <style>
-          /* 强制打印背景颜色，不让打印机吃掉颜色 */
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body { 
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
@@ -1014,28 +1015,6 @@ if($("downloadReportBtn")){
             margin: 0 0 15px 0; 
             color: #000; 
           }
-          /* 支付详情区的排版 */
-          .payment-breakdown { 
-            background-color: #f4f8f4 !important; 
-            padding: 15px 20px; 
-            border-radius: 8px; 
-            border-left: 5px solid #4caf50 !important; 
-            font-size: 16px; 
-            margin-top: 10px;
-            margin-bottom: 25px; 
-          }
-          .payment-breakdown div { margin-bottom: 8px; }
-          
-          /* 热销商品的排版 */
-          .top-selling-item { 
-            font-size: 16px; 
-            padding: 10px 0; 
-            border-bottom: 1px dashed #ccc; 
-            display: flex; 
-            justify-content: space-between;
-          }
-          .top-selling-name { flex: 1; padding-right: 20px; }
-          .top-selling-qty { font-weight: bold; color: #d32f2f; }
         </style>
       </head>
       <body>
@@ -1043,7 +1022,6 @@ if($("downloadReportBtn")){
         ${reportContent}
         <script>
           window.onload = function() { 
-            // 延迟 0.3 秒，确保格式全部加载完毕再呼叫打印机
             setTimeout(() => { 
               window.print(); 
               setTimeout(() => { window.close(); }, 500); 
@@ -1056,7 +1034,7 @@ if($("downloadReportBtn")){
     printWindow.document.close();
   });
 }
-// ---------- END OF CLOSING & MONTHLY REVENUE ---------- 
+
 // ---------- SECURE QR PENDING ORDERS ----------
 function startPendingOrdersListener(){
   if(pendingUnsubscribe){ pendingUnsubscribe(); }
