@@ -901,10 +901,10 @@ async function generateMonthlyReport(){
   if(!monthValue) return;
   const [year, month] = monthValue.split("-").map(Number);
 
-  // 1. 获取 CLOSINGS 用于计算财务数据和支付渠道细分
+  // 1. 获取 CLOSINGS 计算财务数据
   const closingsSnap = await getDocs(collection(db, "closings"));
   let revenue = 0; let totalOrders = 0; let discount = 0;
-  let cash = 0; let tng = 0; let shopee = 0; // 新增支付渠道统计
+  let cash = 0; let tng = 0; let shopee = 0;
 
   closingsSnap.forEach(docSnap=>{
     const c = docSnap.data();
@@ -913,33 +913,40 @@ async function generateMonthlyReport(){
       revenue += Number(c.revenue) || 0;
       discount += Number(c.discount) || 0;
       totalOrders += Number(c.orders) || 0;
-      cash += Number(c.cash) || 0;       // 累加现金
-      tng += Number(c.tng) || 0;         // 累加 TNG
-      shopee += Number(c.shopee) || 0;   // 累加 Shopee
+      cash += Number(c.cash) || 0;
+      tng += Number(c.tng) || 0;
+      shopee += Number(c.shopee) || 0;
     }
   });
 
-  // 2. 获取 ORDERS 仅用于计算 Top Selling
+  // 2. 获取 ORDERS 计算 Top Selling (加入了智能识别，防止出现 undefined)
   const ordersSnap = await getDocs(collection(db, "orders"));
   let top = {};
   ordersSnap.forEach(docSnap=>{
     const order = docSnap.data();
     const d = toDate(order.time);
     if(d.getFullYear() === year && (d.getMonth() + 1) === month){
-      order.items.forEach(item=>{ 
-        top[item.name] = (top[item.name] || 0) + (Number(item.qty) || 0); 
+      // 兼容数据库可能用 items 或是 cart 作为商品列表
+      const itemsArray = order.items || order.cart || []; 
+      itemsArray.forEach(item => {
+        // 智能兼容商品名称的各种写法
+        const itemName = item.name || item.title || item.productName || item.product || (typeof item === 'string' ? item : "Unknown Item");
+        // 智能兼容商品数量的各种写法
+        const itemQty = Number(item.qty || item.quantity || item.count) || 1;
+        
+        top[itemName] = (top[itemName] || 0) + itemQty;
       });
     }
   });
 
   const top3 = Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,3);
 
-  // 3. 渲染
+  // 3. 渲染数据 (加入了专属 class，方便打印机识别排版)
   $("monthlyReportContent").innerHTML = `
     <h3>Total Revenue</h3>
     <p>RM ${money(revenue)}</p>
     
-    <div style="background: #f9f9f9; padding: 10px; border-radius: 6px; margin-top: -10px; margin-bottom: 20px; border-left: 4px solid #4caf50; font-size: 14px; line-height: 1.6;">
+    <div class="payment-breakdown">
       <div>💵 <strong>Cash:</strong> RM ${money(cash)}</div>
       <div>📱 <strong>TNG:</strong> RM ${money(tng)}</div>
       <div>🛍️ <strong>Shopee:</strong> RM ${money(shopee)}</div>
@@ -951,20 +958,101 @@ async function generateMonthlyReport(){
     <h3>Total Discount</h3>
     <p>RM ${money(discount)}</p>
     
-    <hr>
     <h3>Top Selling Items</h3>
-    ${top3.map((item,index)=>`<div>${index+1}. ${item[0]} x${item[1]}</div>`).join("") || '<div>-</div>'}
+    ${top3.map((item,index)=>`
+      <div class="top-selling-item">
+        <span class="top-selling-name">${index+1}. ${item[0]}</span>
+        <span class="top-selling-qty">x${item[1]}</span>
+      </div>
+    `).join("") || '<div class="top-selling-item">-</div>'}
   `;
 }
 
 if($("closeReportBtn")){ $("closeReportBtn").addEventListener("click", () => hide("monthlyReportModal")); }
 
+// 4. 全新升级的打印功能 (注入了排版 CSS，确保打印出来好看)
 if($("downloadReportBtn")){
   $("downloadReportBtn").addEventListener("click", () => {
     const reportContent = $("monthlyReportContent").innerHTML;
     const monthTitle = $("reportMonthTitle").innerText;
     const printWindow = window.open("", "_blank");
-    printWindow.document.write(`<html><head><title>${monthTitle}</title><style>body{font-family:sans-serif;padding:20px;color:#333;}</style></head><body><h2>${monthTitle}</h2>${reportContent}<script>window.onload=function(){window.print();setTimeout(()=>{window.close();},500);};<\/script></body></html>`);
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>${monthTitle} Report</title>
+        <style>
+          /* 强制打印背景颜色，不让打印机吃掉颜色 */
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body { 
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            padding: 30px; 
+            color: #222; 
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+          }
+          h2 { 
+            text-align: center; 
+            border-bottom: 2px solid #000; 
+            padding-bottom: 15px; 
+            margin-bottom: 30px; 
+            font-size: 24px;
+          }
+          h3 { 
+            font-size: 14px; 
+            color: #666; 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+            margin-top: 25px; 
+            margin-bottom: 5px; 
+            border-bottom: 1px solid #eee; 
+            padding-bottom: 5px; 
+          }
+          p { 
+            font-size: 20px; 
+            font-weight: bold; 
+            margin: 0 0 15px 0; 
+            color: #000; 
+          }
+          /* 支付详情区的排版 */
+          .payment-breakdown { 
+            background-color: #f4f8f4 !important; 
+            padding: 15px 20px; 
+            border-radius: 8px; 
+            border-left: 5px solid #4caf50 !important; 
+            font-size: 16px; 
+            margin-top: 10px;
+            margin-bottom: 25px; 
+          }
+          .payment-breakdown div { margin-bottom: 8px; }
+          
+          /* 热销商品的排版 */
+          .top-selling-item { 
+            font-size: 16px; 
+            padding: 10px 0; 
+            border-bottom: 1px dashed #ccc; 
+            display: flex; 
+            justify-content: space-between;
+          }
+          .top-selling-name { flex: 1; padding-right: 20px; }
+          .top-selling-qty { font-weight: bold; color: #d32f2f; }
+        </style>
+      </head>
+      <body>
+        <h2>📊 ${monthTitle} Report</h2>
+        ${reportContent}
+        <script>
+          window.onload = function() { 
+            // 延迟 0.3 秒，确保格式全部加载完毕再呼叫打印机
+            setTimeout(() => { 
+              window.print(); 
+              setTimeout(() => { window.close(); }, 500); 
+            }, 300); 
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
     printWindow.document.close();
   });
 }
