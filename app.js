@@ -901,20 +901,25 @@ async function generateMonthlyReport(){
   if(!monthValue) return;
   const [year, month] = monthValue.split("-").map(Number);
 
-  // 1. 获取 CLOSINGS 用于计算财务数据 (保证与外面看到的数字一致)
+  // 1. 获取 CLOSINGS 用于计算财务数据和支付渠道细分
   const closingsSnap = await getDocs(collection(db, "closings"));
   let revenue = 0; let totalOrders = 0; let discount = 0;
+  let cash = 0; let tng = 0; let shopee = 0; // 新增支付渠道统计
+
   closingsSnap.forEach(docSnap=>{
     const c = docSnap.data();
     const d = toDate(c.time);
     if(d.getFullYear() === year && (d.getMonth() + 1) === month){
       revenue += Number(c.revenue) || 0;
       discount += Number(c.discount) || 0;
-      totalOrders += Number(c.orders) || 0; // 使用结账记录里的订单数
+      totalOrders += Number(c.orders) || 0;
+      cash += Number(c.cash) || 0;       // 累加现金
+      tng += Number(c.tng) || 0;         // 累加 TNG
+      shopee += Number(c.shopee) || 0;   // 累加 Shopee
     }
   });
 
-  // 2. 获取 ORDERS 仅用于计算 Top Selling (热销商品)
+  // 2. 获取 ORDERS 仅用于计算 Top Selling
   const ordersSnap = await getDocs(collection(db, "orders"));
   let top = {};
   ordersSnap.forEach(docSnap=>{
@@ -933,15 +938,24 @@ async function generateMonthlyReport(){
   $("monthlyReportContent").innerHTML = `
     <h3>Total Revenue</h3>
     <p>RM ${money(revenue)}</p>
+    
+    <div style="background: #f9f9f9; padding: 10px; border-radius: 6px; margin-top: -10px; margin-bottom: 20px; border-left: 4px solid #4caf50; font-size: 14px; line-height: 1.6;">
+      <div>💵 <strong>Cash:</strong> RM ${money(cash)}</div>
+      <div>📱 <strong>TNG:</strong> RM ${money(tng)}</div>
+      <div>🛍️ <strong>Shopee:</strong> RM ${money(shopee)}</div>
+    </div>
+
     <h3>Total Orders</h3>
     <p>${totalOrders}</p>
+    
     <h3>Total Discount</h3>
     <p>RM ${money(discount)}</p>
+    
     <hr>
     <h3>Top Selling Items</h3>
     ${top3.map((item,index)=>`<div>${index+1}. ${item[0]} x${item[1]}</div>`).join("") || '<div>-</div>'}
   `;
-} 
+}
 
 if($("closeReportBtn")){ $("closeReportBtn").addEventListener("click", () => hide("monthlyReportModal")); }
 
