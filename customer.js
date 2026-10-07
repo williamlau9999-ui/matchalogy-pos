@@ -646,7 +646,7 @@ const whatsappNumber = "60167019669";
 
     // 3. 生成 WhatsApp 链接并在新窗口打开
     const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
-    window.open(waUrl, "_blank");
+    window.location.href = waUrl;
 
     hideModal("customerCartModal");
     $("customerOrderNumber").innerText = customerOrderNo;
