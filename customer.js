@@ -145,8 +145,8 @@ function getProductConfig(product={}){
   };
 }
 
-function showModal(id){ if($(id)) $(id).style.display = "flex"; }
-function hideModal(id){ if($(id)) $(id).style.display = "none"; }
+function showModal(id){ if($(id))$(id).style.display = "flex"; }
+function hideModal(id){ if($(id))$(id).style.display = "none"; }
 
 function loadSavedCart(){
   try{
@@ -251,7 +251,7 @@ function listenCustomerProducts(){
     },
     error=>{
       console.error(error);
-      $("customerProducts").innerHTML = '<div class="empty-state">Unable to load menu.</div>';
+      if($("customerProducts")) $("customerProducts").innerHTML = '<div class="empty-state">Unable to load menu.</div>';
     }
   );
 }
@@ -291,6 +291,8 @@ function renderCustomerProducts(){
     const text = `${product.name || ""} ${product.category || ""}`.toLowerCase();
     return categoryMatch && (!keyword || text.includes(keyword));
   });
+
+  if(!$("customerProducts")) return;
 
   if(!visible.length){
     $("customerProducts").innerHTML = '<div class="empty-state">No products found.</div>';
@@ -347,7 +349,7 @@ function selectCustomerProduct(product){
 
   selectedProduct = product;
   selectedConfig = config;
-  $("customerModifierTitle").innerText = product.name || "Product";
+  if($("customerModifierTitle")) $("customerModifierTitle").innerText = product.name || "Product";
 
   setFieldVisible("customerMilkGroup",config.showMilk);
   setFieldVisible("customerIceGroup",config.showIce);
@@ -359,7 +361,7 @@ function selectCustomerProduct(product){
   populateSelect("customerIce",config.iceOptions,product.defaultIce || "");
   populateSelect("customerSweet",config.sweetOptions,product.defaultSweet || "");
   populateSelect("customerAddon",config.addonOptions,product.defaultAddon || "0");
-  $("customerItemNote").value = config.showNote ? safeText(product.defaultNote,200) : "";
+  if($("customerItemNote")) $("customerItemNote").value = config.showNote ? safeText(product.defaultNote,200) : "";
 
   showModal("customerModifierModal");
 }
@@ -397,9 +399,11 @@ function renderCustomerCart(){
   const quantity = cart.reduce((sum,item)=>sum + (Number(item.qty) || 0),0);
   const total = cart.reduce((sum,item)=>sum + (Number(item.price) || 0) * (Number(item.qty) || 0),0);
 
-  $("cartCount").innerText = quantity;
-  $("floatingTotal").innerText = money(total);
-  $("customerTotal").innerText = money(total);
+  if($("cartCount")) $("cartCount").innerText = quantity;
+  if($("floatingTotal")) $("floatingTotal").innerText = money(total);
+  if($("customerTotal")) $("customerTotal").innerText = money(total);
+
+  if(!$("customerCartList")) return;
 
   if(!cart.length){
     $("customerCartList").innerHTML = '<div class="empty-state">Your cart is empty.</div>';
@@ -463,57 +467,59 @@ function bindCartControls(){
   });
 }
 
-$("customerAddModifierBtn").addEventListener("click",()=>{
-  if(!selectedProduct || !selectedConfig) return;
+if($("customerAddModifierBtn")){
+  $("customerAddModifierBtn").addEventListener("click",()=>{
+    if(!selectedProduct || !selectedConfig) return;
 
-  const config = selectedConfig;
-  const milk = config.showMilk ? safeText($("customerMilk").value,40) : "";
-  const ice = config.showIce ? safeText($("customerIce").value,40) : "";
-  const sweet = config.showSweet ? safeText($("customerSweet").value,40) : "";
-  const note = config.showNote ? safeText($("customerItemNote").value,200) : "";
+    const config = selectedConfig;
+    const milk = config.showMilk ? safeText($("customerMilk")?.value,40) : "";
+    const ice = config.showIce ? safeText($("customerIce")?.value,40) : "";
+    const sweet = config.showSweet ? safeText($("customerSweet")?.value,40) : "";
+    const note = config.showNote ? safeText($("customerItemNote")?.value,200) : "";
 
-  const addonOption = config.showAddon
-    ? $("customerAddon").selectedOptions[0]
-    : null;
-  const addonCode = addonOption ? addonOption.value : "0";
-  const addonPrice = addonOption ? Number(addonOption.dataset.price) || 0 : 0;
-  const addonName = addonOption ? addonOption.text.trim() : "None";
-  const basePrice = Number(selectedProduct.price) || 0;
-  const finalPrice = basePrice + addonPrice;
+    const addonOption = config.showAddon && $("customerAddon")
+      ? $("customerAddon").selectedOptions[0]
+      : null;
+    const addonCode = addonOption ? addonOption.value : "0";
+    const addonPrice = addonOption ? Number(addonOption.dataset.price) || 0 : 0;
+    const addonName = addonOption ? addonOption.text.trim() : "None";
+    const basePrice = Number(selectedProduct.price) || 0;
+    const finalPrice = basePrice + addonPrice;
 
-  const existing = cart.find(item=>
-    item.productId === selectedProduct.id &&
-    item.milk === milk &&
-    item.ice === ice &&
-    item.sweet === sweet &&
-    item.addonCode === addonCode &&
-    item.note === note
-  );
+    const existing = cart.find(item=>
+      item.productId === selectedProduct.id &&
+      item.milk === milk &&
+      item.ice === ice &&
+      item.sweet === sweet &&
+      item.addonCode === addonCode &&
+      item.note === note
+    );
 
-  if(existing){
-    if(existing.qty < 20) existing.qty += 1;
-  }else{
-    cart.push({
-      productId:selectedProduct.id,
-      name:selectedProduct.name,
-      basePrice,
-      price:finalPrice,
-      qty:1,
-      milk,
-      ice,
-      sweet,
-      addonCode,
-      addon:addonName,
-      note
-    });
-  }
+    if(existing){
+      if(existing.qty < 20) existing.qty += 1;
+    }else{
+      cart.push({
+        productId:selectedProduct.id,
+        name:selectedProduct.name,
+        basePrice,
+        price:finalPrice,
+        qty:1,
+        milk,
+        ice,
+        sweet,
+        addonCode,
+        addon:addonName,
+        note
+      });
+    }
 
-  selectedProduct = null;
-  selectedConfig = null;
-  hideModal("customerModifierModal");
-  saveCart();
-  renderCustomerCart();
-});
+    selectedProduct = null;
+    selectedConfig = null;
+    hideModal("customerModifierModal");
+    saveCart();
+    renderCustomerCart();
+  });
+}
 
 function listenToSubmittedOrder(orderRef){
   if(orderStatusUnsubscribe) orderStatusUnsubscribe();
@@ -622,7 +628,7 @@ async function submitCustomerOrder(){
       createdAt:serverTimestamp()
     });
 
-    // 1. 拼接 WhatsApp 格式消息
+    // ⚠️ 记得换成你的 WhatsApp 接收号码！ (包含国家代码，无 + 号，如 60167019669)
     const whatsappNumber = "60167019669"; 
     let waMessage = `*新订单 #${customerOrderNo}*\n`;
     waMessage += `*顾客姓名:* ${customerName}\n`;
@@ -642,7 +648,6 @@ async function submitCustomerOrder(){
 
     const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
 
-    // 2. 绑定 WhatsApp 跳转事件
     const sendBtn = $("sendWhatsappBtn");
     if(sendBtn){
       sendBtn.onclick = function(){
@@ -650,7 +655,6 @@ async function submitCustomerOrder(){
       };
     }
 
-    // 3. 切换界面弹窗
     hideModal("customerCartModal");
 
     if($("customerOrderNumber")) $("customerOrderNumber").innerText = customerOrderNo;
@@ -665,7 +669,6 @@ async function submitCustomerOrder(){
     showModal("orderSuccessModal");
     listenToSubmittedOrder(orderRef);
 
-    // 4. 清空购物车与输入框
     cart = [];
     saveCart();
     if($("customerName")) $("customerName").value = "";
@@ -685,30 +688,6 @@ async function submitCustomerOrder(){
   }
 }
 
-    hideModal("customerCartModal");
-    $("customerOrderNumber").innerText = customerOrderNo;
-    $("customerOrderStatus").className = "customer-order-status pending";
-    $("customerOrderStatus").innerText = "Waiting for shop confirmation";
-    $("customerOrderStatusDetail").innerText = "Please pay at the counter after the order is accepted.";
-    showModal("orderSuccessModal");
-    listenToSubmittedOrder(orderRef);
-
-    cart = [];
-    saveCart();
-    $("customerName").value = "";
-    $("customerPhone").value = "";
-    $("customerOrderNote").value = "";
-    renderCustomerCart();
-  }catch(error){
-    console.error(error);
-    alert(error.message || "Unable to submit order. Please try again.");
-  }finally{
-    submitting = false;
-    button.disabled = false;
-    button.innerText = "Submit Order";
-  }
-}
-
 document.querySelectorAll(".category-tab").forEach(tab=>{
   tab.addEventListener("click",()=>{
     document.querySelectorAll(".category-tab").forEach(item=>item.classList.remove("active"));
@@ -718,21 +697,24 @@ document.querySelectorAll(".category-tab").forEach(tab=>{
   });
 });
 
-$("customerSearch").addEventListener("input",event=>{
-  searchKeyword = event.target.value.trim();
-  renderCustomerProducts();
-});
+if($("customerSearch")){
+  $("customerSearch").addEventListener("input",event=>{
+    searchKeyword = event.target.value.trim();
+    renderCustomerProducts();
+  });
+}
 
-$("openCartBtn").addEventListener("click",()=>showModal("customerCartModal"));
-$("closeCartBtn").addEventListener("click",()=>hideModal("customerCartModal"));
-$("closeModifierBtn").addEventListener("click",()=>hideModal("customerModifierModal"));
-$("closeSuccessBtn").addEventListener("click",()=>hideModal("orderSuccessModal"));
-$("submitCustomerOrderBtn").addEventListener("click",submitCustomerOrder);
+if($("openCartBtn")) $("openCartBtn").addEventListener("click",()=>showModal("customerCartModal"));
+if($("closeCartBtn")) $("closeCartBtn").addEventListener("click",()=>hideModal("customerCartModal"));
+if($("closeModifierBtn")) $("closeModifierBtn").addEventListener("click",()=>hideModal("customerModifierModal"));
+if($("closeSuccessBtn")) $("closeSuccessBtn").addEventListener("click",()=>hideModal("orderSuccessModal"));
+if($("submitCustomerOrderBtn")) $("submitCustomerOrderBtn").addEventListener("click",submitCustomerOrder);
 
 ["customerModifierModal","customerCartModal"].forEach(id=>{
-  $(id).addEventListener("click",event=>{
-    if(event.target === $(id)) hideModal(id);
-  });
+  if($(id)){$(id).addEventListener("click",event=>{
+      if(event.target === $(id)) hideModal(id);
+    });
+  }
 });
 
 async function startCustomerApp(){
@@ -743,7 +725,7 @@ async function startCustomerApp(){
     listenCustomerProducts();
   }catch(error){
     console.error(error);
-    $("customerProducts").innerHTML = '<div class="empty-state">Unable to connect to the ordering system.</div>';
+    if($("customerProducts")) $("customerProducts").innerHTML = '<div class="empty-state">Unable to connect to the ordering system.</div>';
   }
 }
 
