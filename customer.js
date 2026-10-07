@@ -624,8 +624,10 @@ customerName:
       createdAt:serverTimestamp()
     });
 
-// 1. 填入你的 WhatsApp 商家号码 (包含国家代码，不要加 + 号，比如马来西亚：60123456789)
-    const whatsappNumber = "60167109669"; 
+// === 订单成功保存到数据库后执行 ===
+
+    // 1. 填入你的 WhatsApp 商家号码 
+    const whatsappNumber = "60167019669"; // 记得换成你的号码！
 
     // 2. 拼接订单信息文本
     let waMessage = `*新订单 #${customerOrderNo}*\n`;
@@ -648,24 +650,44 @@ customerName:
     // 3. 生成 WhatsApp 链接
     const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
 
-    // 4. 隐藏购物车弹窗，更新成功提示弹窗
-    hideModal("customerCartModal");
+    // 4. ⭐ 安全更新前端界面 (避免找不到函数导致崩溃) ⭐
     
-    // 显示订单号
-    if ($("customerOrderNumber")) {
-      $("customerOrderNumber").innerText = customerOrderNo;
+    // 隐藏购物车弹窗
+    const cartModal = document.getElementById("customerCartModal");
+    if (cartModal) {
+        cartModal.style.display = "none";
+        // 如果你的系统自带 hideModal 函数，最好保留： hideModal("customerCartModal"); 
+    }
+    
+    // 更新订单号文字
+    const orderNumEl = document.getElementById("customerOrderNumber");
+    if (orderNumEl) {
+      orderNumEl.innerText = customerOrderNo;
     }
 
-    // ⭐ 重点：将 WhatsApp 链接绑定到成功的“发送”按钮上，并直接弹出引导 alert 或模态框
-    const sendBtn = $("sendWhatsappBtn");
+    // 绑定 WhatsApp 发送按钮的跳转功能
+    const sendBtn = document.getElementById("sendWhatsappBtn");
     if (sendBtn) {
       sendBtn.onclick = function() {
         window.location.href = waUrl;
       };
     }
 
-    // 自动打开订单成功弹窗（提示顾客点击）
-    showModal("orderSuccessModal");
+    // 绑定关闭按钮
+    const closeBtn = document.getElementById("closeSuccessBtn");
+    if (closeBtn) {
+      closeBtn.onclick = function() {
+        document.getElementById("orderSuccessModal").style.display = "none";
+        window.location.reload(); // 关闭后刷新页面清空购物车
+      };
+    }
+
+    // 显示订单成功弹窗
+    const successModal = document.getElementById("orderSuccessModal");
+    if (successModal) {
+        successModal.style.display = "flex"; // 或 "block"，取决于你的 css
+        // 如果你的系统自带 showModal 函数： showModal("orderSuccessModal");
+    }
 
     hideModal("customerCartModal");
     $("customerOrderNumber").innerText = customerOrderNo;
