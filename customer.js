@@ -605,80 +605,99 @@ async function submitCustomerOrder(){
   button.innerText = "Submitting...";
 
   try{
-    const orderRef = await addDoc(collection(db,"pendingOrders"),{
-
-customerName:
-  document.getElementById(
-    "customerName"
-  ).value.trim(),
-
-      creatorUid:currentUser.uid,
+    c// === 1. 提交订单到数据库 ===
+    console.log("准备保存订单到数据库..."); // 调试1
+    const orderRef = await addDoc(collection(db, "pendingOrders"), {
+      creatorUid: currentUser.uid,
       customerOrderNo,
       customerName,
       customerPhone,
-      note:orderNote,
-      items:orderItems,
+      note: orderNote,
+      items: orderItems,
       estimatedTotal,
-      source:"QR",
-      status:"pending",
-      createdAt:serverTimestamp()
+      source: "QR",
+      status: "pending",
+      createdAt: serverTimestamp()
     });
+    console.log("订单保存成功！Order ID:", orderRef.id); // 调试2
 
-// === 订单保存到 Firebase 之后 ===
+    // === 2. 准备 WhatsApp 跳转链接 ===
+    console.log("准备生成 WhatsApp 链接..."); 
+    try {
+      const whatsappNumber = "60167019669"; 
+      let waMessage = `*新订单 #${customerOrderNo}*\n*顾客姓名:* ${customerName}\n`;
+      if (customerPhone) waMessage += `*联络电话:* ${customerPhone}\n`;
+      waMessage += `\n*📝 订单内容:*\n`;
 
-    // 1. 生成 WhatsApp 内容
-    const whatsappNumber = "60167019669"; // 记得换成你的号码！
-    let waMessage = `*新订单 #${customerOrderNo}*\n*顾客姓名:* ${customerName}\n`;
-    if(customerPhone) waMessage += `*联络电话:* ${customerPhone}\n`;
-    waMessage += `\n*📝 订单内容:*\n`;
+      orderItems.forEach(item => {
+        let modifiers = [item.milk, item.ice, item.sweet].filter(Boolean).join(" · ");
+        if (item.addonName && item.addonName !== "None") modifiers += (modifiers ? " · " : "") + item.addonName;
+        waMessage += `${item.qty}x ${item.nameSnapshot} (RM ${Number(item.estimatedUnitPrice * item.qty).toFixed(2)})\n`;
+        if (modifiers) waMessage += `  ↳ [${modifiers}]\n`;
+        if (item.note) waMessage += `  ↳ 备注: ${item.note}\n`;
+      });
 
-    orderItems.forEach(item => {
-      let modifiers = [item.milk, item.ice, item.sweet].filter(Boolean).join(" · ");
-      if(item.addonName && item.addonName !== "None") modifiers += (modifiers ? " · " : "") + item.addonName;
-      waMessage += `${item.qty}x ${item.nameSnapshot} (RM ${Number(item.estimatedUnitPrice * item.qty).toFixed(2)})\n`;
-      if(modifiers) waMessage += `  ↳ [${modifiers}]\n`;
-      if(item.note) waMessage += `  ↳ 备注: ${item.note}\n`;
-    });
+      waMessage += `\n*💰 预计总计:* RM ${Number(estimatedTotal).toFixed(2)}\n`;
+      if (orderNote) waMessage += `*📌 订单备注:* ${orderNote}\n`;
+      
+      const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
+      console.log("WhatsApp 链接生成成功:", waUrl); // 调试4
 
-    waMessage += `\n*💰 预计总计:* RM ${Number(estimatedTotal).toFixed(2)}\n`;
-    if(orderNote) waMessage += `*📌 订单备注:* ${orderNote}\n`;
-    const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
-
-    // 2. 绑定 WhatsApp 跳转功能到绿色按钮
-    const sendBtn = document.getElementById("sendWhatsappBtn");
-    if (sendBtn) {
-      sendBtn.onclick = function() {
-        window.location.href = waUrl;
-      };
+      // 绑定 WhatsApp 发送按钮
+      const sendBtn = document.getElementById("sendWhatsappBtn");
+      if (sendBtn) {
+        sendBtn.onclick = function () {
+          window.location.href = waUrl;
+        };
+      }
+    } catch (waError) {
+      console.error("生成 WhatsApp 链接时出错:", waError);
+      alert("生成发送链接失败，请通知店员。");
     }
 
-    // 3. 绑定关闭按钮功能（关闭并刷新页面）
-    const closeBtn = document.getElementById("closeSuccessBtn");
-    if (closeBtn) {
-      closeBtn.onclick = function() {
-        window.location.reload(); 
-      };
-    }
+    // === 3. 更新 UI 界面 (非常关键，防止卡死) ===
+    console.log("准备更新界面..."); // 调试5
+    try {
+      // 3.1 隐藏购物车，显示成功弹窗
+      hideModal("customerCartModal");
+      
+      const orderNumEl = document.getElementById("customerOrderNumber");
+      if (orderNumEl) orderNumEl.innerText = customerOrderNo;
 
-    // 4. ⭐ 恢复你原本的界面切换方式 ⭐
-    // 隐藏购物车弹窗
-    if (typeof hideModal === "function") {
-        hideModal("customerCartModal");
-    } else {
-        document.getElementById("customerCartModal").style.display = "none";
-    }
-    
-    // 填入订单号
-    const orderNumEl = document.getElementById("customerOrderNumber");
-    if (orderNumEl) {
-      orderNumEl.innerText = customerOrderNo;
-    }
+      // 你的系统可能需要更新原本的状态文字 (即使现在用不到了)
+      const statusEl = document.getElementById("customerOrderStatus");
+      if(statusEl) {
+          statusEl.className = "customer-order-status pending";
+          statusEl.innerText = "Waiting for shop confirmation";
+      }
+      const detailEl = document.getElementById("customerOrderStatusDetail");
+      if(detailEl) detailEl.innerText = "Please pay at the counter after the order is accepted.";
 
-    // 弹出成功弹窗
-    if (typeof showModal === "function") {
-        showModal("orderSuccessModal");
-    } else {
-        document.getElementById("orderSuccessModal").style.display = "block";
+      showModal("orderSuccessModal");
+      
+      // 3.2 启动监听器 (原系统逻辑)
+      if (typeof listenToSubmittedOrder === 'function') {
+         listenToSubmittedOrder(orderRef);
+      }
+
+      // 3.3 清空购物车
+      cart = [];
+      saveCart();
+      const nameInput = document.getElementById("customerName");
+      if(nameInput) nameInput.value = "";
+      const phoneInput = document.getElementById("customerPhone");
+      if(phoneInput) phoneInput.value = "";
+      const noteInput = document.getElementById("customerOrderNote");
+      if(noteInput) noteInput.value = "";
+      
+      renderCustomerCart();
+      console.log("界面更新完成，流程结束。"); // 调试6
+
+    } catch (uiError) {
+      console.error("更新界面时发生错误:", uiError);
+      // 强制解除蒙层，防止卡死
+      document.body.style.pointerEvents = "auto";
+      alert("界面更新遇到问题，但订单已提交成功！");
     }
 
     hideModal("customerCartModal");
