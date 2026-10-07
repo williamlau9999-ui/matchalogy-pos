@@ -525,22 +525,24 @@ function listenToSubmittedOrder(orderRef){
     const statusElement = $("customerOrderStatus");
     const detailElement = $("customerOrderStatusDetail");
 
-    statusElement.classList.remove("pending","accepted","rejected");
-    statusElement.classList.add(status);
+    if(statusElement){
+      statusElement.classList.remove("pending","accepted","rejected");
+      statusElement.classList.add(status);
+    }
 
     if(status === "pending"){
-      statusElement.innerText = "Waiting for shop confirmation";
-      detailElement.innerText = "Please keep this order number and pay at the counter after confirmation.";
+      if(statusElement) statusElement.innerText = "Waiting for shop confirmation";
+      if(detailElement) detailElement.innerText = "Please keep this order number and pay at the counter after confirmation.";
     }else if(status === "accepted"){
-      statusElement.innerText = "Order accepted";
+      if(statusElement) statusElement.innerText = "Order accepted";
       const finalTotal = Number(order.finalTotal);
       const totalText = Number.isFinite(finalTotal) ? ` · RM ${money(finalTotal)}` : "";
-      detailElement.innerText = order.officialOrderNo
+      if(detailElement) detailElement.innerText = order.officialOrderNo
         ? `Official order #${order.officialOrderNo}${totalText}`
         : `Please proceed to payment at the counter${totalText}.`;
     }else if(status === "rejected"){
-      statusElement.innerText = "Order unavailable";
-      detailElement.innerText = order.rejectReason || "Please speak to our staff.";
+      if(statusElement) statusElement.innerText = "Order unavailable";
+      if(detailElement) detailElement.innerText = order.rejectReason || "Please speak to our staff.";
     }
   });
 }
@@ -564,10 +566,10 @@ async function submitCustomerOrder(){
     return;
   }
 
-  const customerName = safeText($("customerName").value,50);
+  const customerName = safeText($("customerName")?.value, 50);
   if(!customerName){
     alert("Please enter your pickup name.");
-    $("customerName").focus();
+    if($("customerName")) $("customerName").focus();
     return;
   }
 
@@ -578,8 +580,8 @@ async function submitCustomerOrder(){
     return;
   }
 
-  const customerPhone = safeText($("customerPhone").value,30);
-  const orderNote = safeText($("customerOrderNote").value,300);
+  const customerPhone = safeText($("customerPhone")?.value, 30);
+  const orderNote = safeText($("customerOrderNote")?.value, 300);
   const orderItems = cart.map(item=>({
     productId:String(item.productId),
     nameSnapshot:safeText(item.name,100),
@@ -601,104 +603,87 @@ async function submitCustomerOrder(){
   const button = $("submitCustomerOrderBtn");
 
   submitting = true;
-  button.disabled = true;
-  button.innerText = "Submitting...";
+  if(button){
+    button.disabled = true;
+    button.innerText = "Submitting...";
+  }
 
   try{
-   
-    console.log("准备保存订单到数据库..."); 
-    const orderRef = await addDoc(collection(db, "pendingOrders"), {
-      creatorUid: currentUser.uid,
+    const orderRef = await addDoc(collection(db,"pendingOrders"),{
+      creatorUid:currentUser.uid,
       customerOrderNo,
       customerName,
       customerPhone,
-      note: orderNote,
-      items: orderItems,
+      note:orderNote,
+      items:orderItems,
       estimatedTotal,
-      source: "QR",
-      status: "pending",
-      createdAt: serverTimestamp()
+      source:"QR",
+      status:"pending",
+      createdAt:serverTimestamp()
     });
-    console.log("订单保存成功！Order ID:", orderRef.id);
 
-    
-    console.log("准备生成 WhatsApp 链接..."); 
-    try {
-      const whatsappNumber = "60167019669"; 
-      let waMessage = `*新订单 #${customerOrderNo}*\n*顾客姓名:* ${customerName}\n`;
-      if (customerPhone) waMessage += `*联络电话:* ${customerPhone}\n`;
-      waMessage += `\n*📝 订单内容:*\n`;
+    // 1. 拼接 WhatsApp 格式消息
+    const whatsappNumber = "60167019669"; 
+    let waMessage = `*新订单 #${customerOrderNo}*\n`;
+    waMessage += `*顾客姓名:* ${customerName}\n`;
+    if(customerPhone) waMessage += `*联络电话:* ${customerPhone}\n`;
+    waMessage += `\n*📝 订单内容:*\n`;
 
-      orderItems.forEach(item => {
-        let modifiers = [item.milk, item.ice, item.sweet].filter(Boolean).join(" · ");
-        if (item.addonName && item.addonName !== "None") modifiers += (modifiers ? " · " : "") + item.addonName;
-        waMessage += `${item.qty}x ${item.nameSnapshot} (RM ${Number(item.estimatedUnitPrice * item.qty).toFixed(2)})\n`;
-        if (modifiers) waMessage += `  ↳ [${modifiers}]\n`;
-        if (item.note) waMessage += `  ↳ 备注: ${item.note}\n`;
-      });
+    orderItems.forEach(item => {
+      let modifiers = [item.milk, item.ice, item.sweet].filter(Boolean).join(" · ");
+      if(item.addonName && item.addonName !== "None") modifiers += (modifiers ? " · " : "") + item.addonName;
+      waMessage += `${item.qty}x ${item.nameSnapshot} (RM ${Number(item.estimatedUnitPrice * item.qty).toFixed(2)})\n`;
+      if(modifiers) waMessage += `  ↳ [${modifiers}]\n`;
+      if(item.note) waMessage += `  ↳ 备注: ${item.note}\n`;
+    });
 
-      waMessage += `\n*💰 预计总计:* RM ${Number(estimatedTotal).toFixed(2)}\n`;
-      if (orderNote) waMessage += `*📌 订单备注:* ${orderNote}\n`;
-      
-      const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
-      console.log("WhatsApp 链接生成成功:", waUrl); // 调试4
+    waMessage += `\n*💰 预计总计:* RM ${Number(estimatedTotal).toFixed(2)}\n`;
+    if(orderNote) waMessage += `*📌 订单备注:* ${orderNote}\n`;
 
-      // 绑定 WhatsApp 发送按钮
-      const sendBtn = document.getElementById("sendWhatsappBtn");
-      if (sendBtn) {
-        sendBtn.onclick = function () {
-          window.location.href = waUrl;
-        };
-      }
-    } catch (waError) {
-      console.error("生成 WhatsApp 链接时出错:", waError);
-      alert("生成发送链接失败，请通知店员。");
+    const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
+
+    // 2. 绑定 WhatsApp 跳转事件
+    const sendBtn = $("sendWhatsappBtn");
+    if(sendBtn){
+      sendBtn.onclick = function(){
+        window.location.href = waUrl;
+      };
     }
 
-    // === 3. 更新 UI 界面 (非常关键，防止卡死) ===
-    console.log("准备更新界面..."); // 调试5
-    try {
-      // 3.1 隐藏购物车，显示成功弹窗
-      hideModal("customerCartModal");
-      
-      const orderNumEl = document.getElementById("customerOrderNumber");
-      if (orderNumEl) orderNumEl.innerText = customerOrderNo;
+    // 3. 切换界面弹窗
+    hideModal("customerCartModal");
 
-      // 你的系统可能需要更新原本的状态文字 (即使现在用不到了)
-      const statusEl = document.getElementById("customerOrderStatus");
-      if(statusEl) {
-          statusEl.className = "customer-order-status pending";
-          statusEl.innerText = "Waiting for shop confirmation";
-      }
-      const detailEl = document.getElementById("customerOrderStatusDetail");
-      if(detailEl) detailEl.innerText = "Please pay at the counter after the order is accepted.";
-
-      showModal("orderSuccessModal");
-      
-      // 3.2 启动监听器 (原系统逻辑)
-      if (typeof listenToSubmittedOrder === 'function') {
-         listenToSubmittedOrder(orderRef);
-      }
-
-      // 3.3 清空购物车
-      cart = [];
-      saveCart();
-      const nameInput = document.getElementById("customerName");
-      if(nameInput) nameInput.value = "";
-      const phoneInput = document.getElementById("customerPhone");
-      if(phoneInput) phoneInput.value = "";
-      const noteInput = document.getElementById("customerOrderNote");
-      if(noteInput) noteInput.value = "";
-      
-      renderCustomerCart();
-      console.log("界面更新完成，流程结束。"); // 调试6
-
-    } catch (uiError) {
-      console.error("更新界面时发生错误:", uiError);
-      // 强制解除蒙层，防止卡死
-      document.body.style.pointerEvents = "auto";
-      alert("界面更新遇到问题，但订单已提交成功！");
+    if($("customerOrderNumber")) $("customerOrderNumber").innerText = customerOrderNo;
+    if($("customerOrderStatus")){
+      $("customerOrderStatus").className = "customer-order-status pending";
+      $("customerOrderStatus").innerText = "Waiting for shop confirmation";
     }
+    if($("customerOrderStatusDetail")){
+      $("customerOrderStatusDetail").innerText = "Please pay at the counter after the order is accepted.";
+    }
+
+    showModal("orderSuccessModal");
+    listenToSubmittedOrder(orderRef);
+
+    // 4. 清空购物车与输入框
+    cart = [];
+    saveCart();
+    if($("customerName")) $("customerName").value = "";
+    if($("customerPhone")) $("customerPhone").value = "";
+    if($("customerOrderNote")) $("customerOrderNote").value = "";
+    renderCustomerCart();
+
+  }catch(error){
+    console.error(error);
+    alert(error.message || "Unable to submit order. Please try again.");
+  }finally{
+    submitting = false;
+    if(button){
+      button.disabled = false;
+      button.innerText = "Submit Order";
+    }
+  }
+}
 
     hideModal("customerCartModal");
     $("customerOrderNumber").innerText = customerOrderNo;

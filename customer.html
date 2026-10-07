@@ -136,26 +136,31 @@
 </div>
 
 <div id="orderSuccessModal" class="customer-modal">
-<div id="orderSuccessModal" class="customer-modal">
   <div class="customer-modal-box success-box">
 
     <div class="success-icon">✓</div>
-    <h2>Order Submitted</h2>
-    <p>Your order number is</p>
+    <h2>🎉 订单已成功提交</h2>
+    <p style="margin-top: 5px; color: #666;">您的订单编号：</p>
 
-    <strong id="customerOrderNumber" class="customer-order-number">
+    <strong id="customerOrderNumber" class="customer-order-number" style="margin: 10px 0;">
       QR000000
     </strong>
 
+    <!-- 状态显示区域 (保留原本系统所需的 ID，防止报错) -->
     <div id="customerOrderStatus" class="customer-order-status pending">
       Waiting for shop confirmation...
     </div>
 
     <div id="customerOrderStatusDetail" class="customer-order-status-detail">
-      Please show this number and pay at the counter.
+      Please pay at the counter after the order is accepted.
     </div>
 
-    <button id="closeSuccessBtn">Done</button>
+    <!-- ⭐ 新增：绿色 WhatsApp 发送按钮 -->
+    <button id="sendWhatsappBtn" style="background-color: #25D366; color: white; font-weight: bold; font-size: 16px; padding: 14px; border-radius: 12px; width: 100%; border: none; cursor: pointer; margin: 15px 0 10px 0; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      📲 点击前往 WhatsApp 发送订单
+    </button>
+
+    <button id="closeSuccessBtn">关闭 / Done</button>
 
   </div>
 </div>
