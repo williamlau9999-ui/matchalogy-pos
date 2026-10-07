@@ -605,8 +605,8 @@ async function submitCustomerOrder(){
   button.innerText = "Submitting...";
 
   try{
-    c// === 1. 提交订单到数据库 ===
-    console.log("准备保存订单到数据库..."); // 调试1
+   
+    console.log("准备保存订单到数据库..."); 
     const orderRef = await addDoc(collection(db, "pendingOrders"), {
       creatorUid: currentUser.uid,
       customerOrderNo,
@@ -619,9 +619,9 @@ async function submitCustomerOrder(){
       status: "pending",
       createdAt: serverTimestamp()
     });
-    console.log("订单保存成功！Order ID:", orderRef.id); // 调试2
+    console.log("订单保存成功！Order ID:", orderRef.id);
 
-    // === 2. 准备 WhatsApp 跳转链接 ===
+    
     console.log("准备生成 WhatsApp 链接..."); 
     try {
       const whatsappNumber = "60167019669"; 
