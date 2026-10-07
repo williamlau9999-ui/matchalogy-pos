@@ -624,21 +624,17 @@ customerName:
       createdAt:serverTimestamp()
     });
 
-// === 订单成功保存到数据库后执行 ===
+// === 订单保存到 Firebase 之后 ===
 
-    // 1. 填入你的 WhatsApp 商家号码 
+    // 1. 生成 WhatsApp 内容
     const whatsappNumber = "60167019669"; // 记得换成你的号码！
-
-    // 2. 拼接订单信息文本
-    let waMessage = `*新订单 #${customerOrderNo}*\n`;
-    waMessage += `*顾客姓名:* ${customerName}\n`;
+    let waMessage = `*新订单 #${customerOrderNo}*\n*顾客姓名:* ${customerName}\n`;
     if(customerPhone) waMessage += `*联络电话:* ${customerPhone}\n`;
     waMessage += `\n*📝 订单内容:*\n`;
 
     orderItems.forEach(item => {
       let modifiers = [item.milk, item.ice, item.sweet].filter(Boolean).join(" · ");
       if(item.addonName && item.addonName !== "None") modifiers += (modifiers ? " · " : "") + item.addonName;
-      
       waMessage += `${item.qty}x ${item.nameSnapshot} (RM ${Number(item.estimatedUnitPrice * item.qty).toFixed(2)})\n`;
       if(modifiers) waMessage += `  ↳ [${modifiers}]\n`;
       if(item.note) waMessage += `  ↳ 备注: ${item.note}\n`;
@@ -646,26 +642,9 @@ customerName:
 
     waMessage += `\n*💰 预计总计:* RM ${Number(estimatedTotal).toFixed(2)}\n`;
     if(orderNote) waMessage += `*📌 订单备注:* ${orderNote}\n`;
-
-    // 3. 生成 WhatsApp 链接
     const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
 
-    // 4. ⭐ 安全更新前端界面 (避免找不到函数导致崩溃) ⭐
-    
-    // 隐藏购物车弹窗
-    const cartModal = document.getElementById("customerCartModal");
-    if (cartModal) {
-        cartModal.style.display = "none";
-        // 如果你的系统自带 hideModal 函数，最好保留： hideModal("customerCartModal"); 
-    }
-    
-    // 更新订单号文字
-    const orderNumEl = document.getElementById("customerOrderNumber");
-    if (orderNumEl) {
-      orderNumEl.innerText = customerOrderNo;
-    }
-
-    // 绑定 WhatsApp 发送按钮的跳转功能
+    // 2. 绑定 WhatsApp 跳转功能到绿色按钮
     const sendBtn = document.getElementById("sendWhatsappBtn");
     if (sendBtn) {
       sendBtn.onclick = function() {
@@ -673,20 +652,33 @@ customerName:
       };
     }
 
-    // 绑定关闭按钮
+    // 3. 绑定关闭按钮功能（关闭并刷新页面）
     const closeBtn = document.getElementById("closeSuccessBtn");
     if (closeBtn) {
       closeBtn.onclick = function() {
-        document.getElementById("orderSuccessModal").style.display = "none";
-        window.location.reload(); // 关闭后刷新页面清空购物车
+        window.location.reload(); 
       };
     }
 
-    // 显示订单成功弹窗
-    const successModal = document.getElementById("orderSuccessModal");
-    if (successModal) {
-        successModal.style.display = "flex"; // 或 "block"，取决于你的 css
-        // 如果你的系统自带 showModal 函数： showModal("orderSuccessModal");
+    // 4. ⭐ 恢复你原本的界面切换方式 ⭐
+    // 隐藏购物车弹窗
+    if (typeof hideModal === "function") {
+        hideModal("customerCartModal");
+    } else {
+        document.getElementById("customerCartModal").style.display = "none";
+    }
+    
+    // 填入订单号
+    const orderNumEl = document.getElementById("customerOrderNumber");
+    if (orderNumEl) {
+      orderNumEl.innerText = customerOrderNo;
+    }
+
+    // 弹出成功弹窗
+    if (typeof showModal === "function") {
+        showModal("orderSuccessModal");
+    } else {
+        document.getElementById("orderSuccessModal").style.display = "block";
     }
 
     hideModal("customerCartModal");
