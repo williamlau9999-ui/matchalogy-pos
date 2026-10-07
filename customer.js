@@ -624,6 +624,30 @@ customerName:
       createdAt:serverTimestamp()
     });
 
+const whatsappNumber = "60167019669"; 
+
+    // 2. 拼接订单信息文本
+    let waMessage = `*新订单 #${customerOrderNo}*\n`;
+    waMessage += `*顾客姓名:* ${customerName}\n`;
+    if(customerPhone) waMessage += `*联络电话:* ${customerPhone}\n`;
+    waMessage += `\n*📝 订单内容:*\n`;
+
+    orderItems.forEach(item => {
+      let modifiers = [item.milk, item.ice, item.sweet].filter(Boolean).join(" · ");
+      if(item.addonName && item.addonName !== "None") modifiers += (modifiers ? " · " : "") + item.addonName;
+      
+      waMessage += `${item.qty}x ${item.nameSnapshot} (RM ${Number(item.estimatedUnitPrice * item.qty).toFixed(2)})\n`;
+      if(modifiers) waMessage += `  ↳ [${modifiers}]\n`;
+      if(item.note) waMessage += `  ↳ 备注: ${item.note}\n`;
+    });
+
+    waMessage += `\n*💰 预计总计:* RM ${Number(estimatedTotal).toFixed(2)}\n`;
+    if(orderNote) waMessage += `*📌 订单备注:* ${orderNote}\n`;
+
+    // 3. 生成 WhatsApp 链接并在新窗口打开
+    const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
+    window.open(waUrl, "_blank");
+
     hideModal("customerCartModal");
     $("customerOrderNumber").innerText = customerOrderNo;
     $("customerOrderStatus").className = "customer-order-status pending";
