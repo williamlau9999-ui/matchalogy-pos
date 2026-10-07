@@ -624,7 +624,8 @@ customerName:
       createdAt:serverTimestamp()
     });
 
-const whatsappNumber = "60167019669"; 
+// 1. 填入你的 WhatsApp 商家号码 (包含国家代码，不要加 + 号，比如马来西亚：60123456789)
+    const whatsappNumber = "60167109669"; 
 
     // 2. 拼接订单信息文本
     let waMessage = `*新订单 #${customerOrderNo}*\n`;
@@ -644,9 +645,27 @@ const whatsappNumber = "60167019669";
     waMessage += `\n*💰 预计总计:* RM ${Number(estimatedTotal).toFixed(2)}\n`;
     if(orderNote) waMessage += `*📌 订单备注:* ${orderNote}\n`;
 
-    // 3. 生成 WhatsApp 链接并在新窗口打开
+    // 3. 生成 WhatsApp 链接
     const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(waMessage)}`;
-    window.location.href = waUrl;
+
+    // 4. 隐藏购物车弹窗，更新成功提示弹窗
+    hideModal("customerCartModal");
+    
+    // 显示订单号
+    if ($("customerOrderNumber")) {
+      $("customerOrderNumber").innerText = customerOrderNo;
+    }
+
+    // ⭐ 重点：将 WhatsApp 链接绑定到成功的“发送”按钮上，并直接弹出引导 alert 或模态框
+    const sendBtn = $("sendWhatsappBtn");
+    if (sendBtn) {
+      sendBtn.onclick = function() {
+        window.location.href = waUrl;
+      };
+    }
+
+    // 自动打开订单成功弹窗（提示顾客点击）
+    showModal("orderSuccessModal");
 
     hideModal("customerCartModal");
     $("customerOrderNumber").innerText = customerOrderNo;
